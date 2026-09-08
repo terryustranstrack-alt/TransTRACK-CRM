@@ -16,6 +16,7 @@ import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import SumberSelect from "@/components/SumberSelect";
 import AssigneeSelect from "@/components/AssigneeSelect";
 import CurrencyInput from "@/components/CurrencyInput";
+import { nextStepState } from "@/lib/reminders";
 import {
   LEAD_STATUSES,
   leadStatusLabel,
@@ -51,6 +52,8 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
     jabatan: "",
     email: "",
     catatan: "",
+    next_step: "",
+    next_step_due: "",
     assigned_to: "",
   });
   const [saving, setSaving] = useState(false);
@@ -446,6 +449,36 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
           </div>
 
           <div className="flex flex-col gap-1">
+            <label htmlFor="edit-next_step" className="text-sm font-medium">
+              Next step
+            </label>
+            <input
+              id="edit-next_step"
+              value={editForm.next_step}
+              onChange={(e) =>
+                setEditForm({ ...editForm, next_step: e.target.value })
+              }
+              placeholder="e.g. Send quote, call to confirm schedule"
+              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="edit-next_step_due" className="text-sm font-medium">
+              Next step due date
+            </label>
+            <input
+              id="edit-next_step_due"
+              type="date"
+              value={editForm.next_step_due}
+              onChange={(e) =>
+                setEditForm({ ...editForm, next_step_due: e.target.value })
+              }
+              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
             <label htmlFor="edit-assigned_to" className="text-sm font-medium">
               Assigned to
             </label>
@@ -511,6 +544,38 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
             {lead.estimasi_nilai != null
               ? lead.estimasi_nilai.toLocaleString("id-ID")
               : "-"}
+          </dd>
+
+          <dt className="text-[var(--color-muted)]">Next step</dt>
+          <dd>{lead.next_step || "-"}</dd>
+
+          <dt className="text-[var(--color-muted)]">Next step due</dt>
+          <dd>
+            {lead.next_step_due ? (
+              (() => {
+                const state = nextStepState(lead.next_step_due);
+                const dueText = new Date(
+                  lead.next_step_due,
+                ).toLocaleDateString("id-ID");
+                if (state === "overdue") {
+                  return (
+                    <span className="text-[var(--color-danger)] font-medium">
+                      {dueText} · overdue
+                    </span>
+                  );
+                }
+                if (state === "today") {
+                  return (
+                    <span className="text-[var(--color-warning)] font-medium">
+                      {dueText} · due today
+                    </span>
+                  );
+                }
+                return dueText;
+              })()
+            ) : (
+              "-"
+            )}
           </dd>
 
           <dt className="text-[var(--color-muted)]">Assigned to</dt>

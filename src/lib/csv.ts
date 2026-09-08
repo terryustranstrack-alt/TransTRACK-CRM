@@ -33,6 +33,12 @@ const KOLOM: {
       lead.estimasi_nilai != null ? String(lead.estimasi_nilai) : "",
   },
   { header: "Notes", value: (lead) => lead.catatan ?? "" },
+  { header: "Next Step", value: (lead) => lead.next_step ?? "" },
+  {
+    header: "Next Step Due",
+    // Tetap format "YYYY-MM-DD" (bukan dilokalkan) supaya bisa diimpor balik.
+    value: (lead) => (lead.next_step_due ? lead.next_step_due.slice(0, 10) : ""),
+  },
   {
     header: "Date Added",
     value: (lead) => new Date(lead.tanggal_masuk).toLocaleString("id-ID"),
@@ -90,6 +96,8 @@ export type NewLeadInput = {
   jabatan: string | null;
   email: string | null;
   catatan: string;
+  next_step: string | null;
+  next_step_due: string | null; // "YYYY-MM-DD" atau null
 };
 
 // Pecah satu baris teks CSV jadi array kolom, dengan menangani kutip ganda
@@ -143,9 +151,9 @@ function findColumnIndex(headerColumns: string[], candidates: string[]): number 
  * Mengenali kolom "Name"/"Nama", "Contact"/"Kontak", "Source"/"Sumber",
  * "Status", "Product"/"Produk", "Estimated Value"/"Estimasi Nilai",
  * "Company"/"Perusahaan", "Job Title"/"Jabatan", "Email", "City"/"Kota",
- * "Notes"/"Catatan" (urutan bebas, header lain diabaikan). Baris tanpa
- * nama/kontak dilewati. Tanggal masuk/update tidak diimpor, dibiarkan
- * default database (waktu import).
+ * "Notes"/"Catatan", "Next Step", "Next Step Due" (format "YYYY-MM-DD")
+ * — urutan bebas, header lain diabaikan. Baris tanpa nama/kontak dilewati.
+ * Tanggal masuk/update tidak diimpor, dibiarkan default database (waktu import).
  */
 export function parseLeadsCsv(text: string): {
   rows: NewLeadInput[];
@@ -181,6 +189,10 @@ export function parseLeadsCsv(text: string): {
   const catatanColumnIndex = findColumnIndex(headerColumns, [
     "notes",
     "catatan",
+  ]);
+  const nextStepColumnIndex = findColumnIndex(headerColumns, ["next step"]);
+  const nextStepDueColumnIndex = findColumnIndex(headerColumns, [
+    "next step due",
   ]);
 
   const rows: NewLeadInput[] = [];
@@ -219,6 +231,18 @@ export function parseLeadsCsv(text: string): {
       kotaColumnIndex >= 0 ? columns[kotaColumnIndex]?.trim() || null : null;
     const catatan =
       catatanColumnIndex >= 0 ? columns[catatanColumnIndex]?.trim() || "" : "";
+    const nextStep =
+      nextStepColumnIndex >= 0
+        ? columns[nextStepColumnIndex]?.trim() || null
+        : null;
+    // Terima hanya format "YYYY-MM-DD"; selain itu diabaikan (null).
+    const nextStepDueRaw =
+      nextStepDueColumnIndex >= 0
+        ? columns[nextStepDueColumnIndex]?.trim() ?? ""
+        : "";
+    const nextStepDue = /^\d{4}-\d{2}-\d{2}$/.test(nextStepDueRaw)
+      ? nextStepDueRaw
+      : null;
 
     const estimasiRaw =
       estimasiColumnIndex >= 0 ? columns[estimasiColumnIndex]?.trim() : "";
@@ -238,6 +262,8 @@ export function parseLeadsCsv(text: string): {
       jabatan,
       email,
       catatan,
+      next_step: nextStep,
+      next_step_due: nextStepDue,
     });
   }
 

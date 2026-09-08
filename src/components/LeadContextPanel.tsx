@@ -373,6 +373,26 @@ export default function LeadContextPanel({
                 className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
               />
             </Field>
+            <Field label="Next step">
+              <input
+                value={editForm.next_step}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, next_step: e.target.value })
+                }
+                placeholder="e.g. Send quote"
+                className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
+              />
+            </Field>
+            <Field label="Next step due date">
+              <input
+                type="date"
+                value={editForm.next_step_due}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, next_step_due: e.target.value })
+                }
+                className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
+              />
+            </Field>
             {isAdmin && (
               <Field label="Assigned to">
                 <AssigneeSelect

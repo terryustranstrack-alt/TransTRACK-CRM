@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { createClient } from "@/lib/supabase/client";
 import { logStatusChange } from "@/lib/activity";
-import { needsFollowUp } from "@/lib/reminders";
+import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import { useBrands } from "@/lib/useBrands";
@@ -42,8 +42,13 @@ function LeadCard({
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: lead.id });
 
-  const overdue = needsFollowUp(lead.status, lead.tanggal_update);
+  const overdue = needsFollowUp(
+    lead.status,
+    lead.tanggal_update,
+    lead.next_step_due,
+  );
   const assignee = profiles.find((p) => p.id === lead.assigned_to);
+  const dueState = nextStepState(lead.next_step_due);
 
   const style = transform
     ? {
@@ -78,6 +83,25 @@ function LeadCard({
         {overdue && (
           <p className="text-xs text-[var(--color-warning)] font-medium mb-2">
             Needs follow-up
+          </p>
+        )}
+        {lead.next_step && (
+          <p className="text-xs text-[var(--color-muted)] mb-2">
+            Next: {lead.next_step}
+            {lead.next_step_due && (
+              <span
+                className={
+                  dueState === "overdue"
+                    ? " text-[var(--color-danger)] font-medium"
+                    : dueState === "today"
+                      ? " text-[var(--color-warning)] font-medium"
+                      : ""
+                }
+              >
+                {" "}
+                ({new Date(lead.next_step_due).toLocaleDateString("id-ID")})
+              </span>
+            )}
           </p>
         )}
         <p className="text-xs text-[var(--color-muted)] mb-2">
@@ -235,7 +259,8 @@ export default function LeadBoard() {
       const cocokAssignee =
         assigneeFilter === SEMUA_ASSIGNEE || lead.assigned_to === assigneeFilter;
       const cocokFollowUp =
-        !followUpOnly || needsFollowUp(lead.status, lead.tanggal_update);
+        !followUpOnly ||
+        needsFollowUp(lead.status, lead.tanggal_update, lead.next_step_due);
       const cocokBrand = brandFilter === "all" || lead.brand_id === brandFilter;
       return (
         cocokPencarian && cocokSumber && cocokAssignee && cocokFollowUp && cocokBrand

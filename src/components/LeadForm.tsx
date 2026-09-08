@@ -23,6 +23,8 @@ const EMPTY_FORM = {
   jabatan: "",
   email: "",
   catatan: "",
+  next_step: "",
+  next_step_due: "",
   assigned_to: "",
   brand_id: "",
 };
@@ -131,6 +133,8 @@ export default function LeadForm({
         jabatan: form.jabatan || null,
         email: form.email.trim() || null,
         catatan: form.catatan,
+        next_step: form.next_step.trim() || null,
+        next_step_due: form.next_step_due || null,
         assigned_to: currentProfile?.is_admin
           ? form.assigned_to || null
           : (currentProfile?.id ?? null),
@@ -290,6 +294,32 @@ export default function LeadForm({
           value={form.catatan}
           onChange={(e) => setForm({ ...form, catatan: e.target.value })}
           rows={3}
+          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="next_step" className="text-sm font-medium">
+          Next step (optional)
+        </label>
+        <input
+          id="next_step"
+          value={form.next_step}
+          onChange={(e) => setForm({ ...form, next_step: e.target.value })}
+          placeholder="e.g. Send quote, call to confirm schedule"
+          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="next_step_due" className="text-sm font-medium">
+          Next step due date (optional)
+        </label>
+        <input
+          id="next_step_due"
+          type="date"
+          value={form.next_step_due}
+          onChange={(e) => setForm({ ...form, next_step_due: e.target.value })}
           className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </div>

@@ -14,6 +14,8 @@ export type LeadEditForm = {
   jabatan: string;
   email: string;
   catatan: string;
+  next_step: string;
+  next_step_due: string; // "YYYY-MM-DD" dari <input type="date">, "" kalau kosong
   assigned_to: string;
 };
 
@@ -31,6 +33,8 @@ export function leadToEditForm(lead: Lead): LeadEditForm {
     jabatan: lead.jabatan ?? "",
     email: lead.email ?? "",
     catatan: lead.catatan ?? "",
+    next_step: lead.next_step ?? "",
+    next_step_due: lead.next_step_due ? lead.next_step_due.slice(0, 10) : "",
     assigned_to: lead.assigned_to ?? "",
   };
 }
@@ -54,6 +58,8 @@ export function buildLeadUpdate(
   const perusahaanBaru = form.perusahaan || null;
   const jabatanBaru = form.jabatan || null;
   const emailBaru = form.email.trim() || null;
+  const nextStepBaru = form.next_step.trim() || null;
+  const nextStepDueBaru = form.next_step_due || null;
   const assignedToBaru = isAdmin ? form.assigned_to || null : lead.assigned_to;
 
   const changedLabels: string[] = [];
@@ -71,6 +77,13 @@ export function buildLeadUpdate(
   if ((form.catatan || "") !== (lead.catatan || "")) {
     changedLabels.push("notes");
   }
+  if (nextStepBaru !== lead.next_step) changedLabels.push("next step");
+  // next_step_due dari database bisa "YYYY-MM-DD" penuh — samakan dulu 10
+  // karakter pertamanya sebelum dibandingkan dengan nilai form.
+  const leadNextStepDue = lead.next_step_due
+    ? lead.next_step_due.slice(0, 10)
+    : null;
+  if (nextStepDueBaru !== leadNextStepDue) changedLabels.push("next step date");
   if (isAdmin && assignedToBaru !== lead.assigned_to) {
     changedLabels.push("assignee");
   }
@@ -87,6 +100,8 @@ export function buildLeadUpdate(
       jabatan: jabatanBaru,
       email: emailBaru,
       catatan: form.catatan,
+      next_step: nextStepBaru,
+      next_step_due: nextStepDueBaru,
       assigned_to: assignedToBaru,
       tanggal_update: new Date().toISOString(),
     },

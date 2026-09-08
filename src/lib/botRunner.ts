@@ -572,6 +572,24 @@ async function handOffToSales(
     .update({ bot_replies_paused: true })
     .eq("id", conversationId);
 
+  // Beri lead ini langkah follow-up yang jelas + jatuh tempo hari ini, supaya
+  // langsung muncul di daftar "Needs follow-up" (dashboard/board), bukan cuma
+  // jadi tag. Jangan timpa kalau sales sudah menuliskan langkahnya sendiri.
+  const { data: leadRow } = await admin
+    .from("leads")
+    .select("next_step")
+    .eq("id", leadId)
+    .single();
+  if (isBlank(leadRow?.next_step ?? null)) {
+    await admin
+      .from("leads")
+      .update({
+        next_step: "Follow up — qualified by bot",
+        next_step_due: new Date().toISOString().slice(0, 10),
+      })
+      .eq("id", leadId);
+  }
+
   const convRow: ConversationRow = {
     id: conversationId,
     external_contact_id: conv.external_contact_id,

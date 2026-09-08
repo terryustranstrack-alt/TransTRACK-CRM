@@ -17,7 +17,7 @@ import {
   type LeadEditForm,
 } from "@/lib/leadEdit";
 import { downloadCsv, leadsToCsv, parseLeadsCsv } from "@/lib/csv";
-import { needsFollowUp } from "@/lib/reminders";
+import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import {
   LEAD_STATUSES,
   leadStatusLabel,
@@ -52,6 +52,8 @@ const EMPTY_EDIT_FORM: LeadEditForm = {
   jabatan: "",
   email: "",
   catatan: "",
+  next_step: "",
+  next_step_due: "",
   assigned_to: "",
 };
 
@@ -103,7 +105,10 @@ export default function ProspekTable() {
     const keyword = search.trim().toLowerCase();
     return leads.filter((lead) => {
       if (keyword && !lead.nama.toLowerCase().includes(keyword)) return false;
-      if (followUpOnly && !needsFollowUp(lead.status, lead.tanggal_update)) {
+      if (
+        followUpOnly &&
+        !needsFollowUp(lead.status, lead.tanggal_update, lead.next_step_due)
+      ) {
         return false;
       }
       if (
@@ -330,6 +335,7 @@ export default function ProspekTable() {
               <th className="p-2">City</th>
               <th className="p-2">Product</th>
               <th className="p-2">Estimated Value</th>
+              <th className="p-2">Next Step</th>
               <th className="p-2">Assignee</th>
               <th className="p-2">Status</th>
               <th className="p-2">Last Updated</th>
@@ -339,7 +345,7 @@ export default function ProspekTable() {
           <tbody>
             {filteredLeads.length === 0 && (
               <tr>
-                <td colSpan={11} className="p-4 text-center text-[var(--color-muted)]">
+                <td colSpan={12} className="p-4 text-center text-[var(--color-muted)]">
                   No matching prospects.
                 </td>
               </tr>
@@ -425,6 +431,30 @@ export default function ProspekTable() {
                           className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
                         />
                       </td>
+                      <td className="p-2 min-w-44">
+                        <input
+                          value={editForm.next_step}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              next_step: e.target.value,
+                            })
+                          }
+                          placeholder="Next step"
+                          className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full mb-1"
+                        />
+                        <input
+                          type="date"
+                          value={editForm.next_step_due}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              next_step_due: e.target.value,
+                            })
+                          }
+                          className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
+                        />
+                      </td>
                       <td className="p-2 min-w-40">
                         {currentProfile?.is_admin ? (
                           <AssigneeSelect
@@ -463,6 +493,35 @@ export default function ProspekTable() {
                         {lead.estimasi_nilai != null
                           ? lead.estimasi_nilai.toLocaleString("id-ID")
                           : "-"}
+                      </td>
+                      <td className="p-2 min-w-44">
+                        {lead.next_step || lead.next_step_due ? (
+                          <>
+                            <div>{lead.next_step || "-"}</div>
+                            {lead.next_step_due &&
+                              (() => {
+                                const state = nextStepState(lead.next_step_due);
+                                const dueText = new Date(
+                                  lead.next_step_due,
+                                ).toLocaleDateString("id-ID");
+                                const cls =
+                                  state === "overdue"
+                                    ? "text-[var(--color-danger)] font-medium"
+                                    : state === "today"
+                                      ? "text-[var(--color-warning)] font-medium"
+                                      : "text-[var(--color-muted)]";
+                                return (
+                                  <div className={`text-xs ${cls}`}>
+                                    {dueText}
+                                    {state === "overdue" && " · overdue"}
+                                    {state === "today" && " · today"}
+                                  </div>
+                                );
+                              })()}
+                          </>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                       <td className="p-2">
                         {(() => {

@@ -24,7 +24,11 @@ create table if not exists leads (
   -- atau otomatis oleh chatbot AI dari isi chat WhatsApp).
   email text,
   -- 0018: true kalau lead ini dibuat otomatis oleh chatbot (untuk metrik).
-  created_by_bot boolean not null default false
+  created_by_bot boolean not null default false,
+  -- Ditambah di 0020_lead_next_step.sql — disiplin follow-up:
+  -- next_step = teks langkah berikutnya, next_step_due = tanggal jatuh temponya.
+  next_step text,
+  next_step_due date
 );
 
 -- Aktifkan Row Level Security supaya akses dibatasi lewat policy di bawah,

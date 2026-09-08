@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { LEAD_STATUSES, leadStatusLabel, type Lead } from "@/lib/types";
 
 const supabase = createClient();
@@ -75,6 +77,21 @@ export default function Dashboard({
       perStatus.find((statusGroup) => statusGroup.status === "Closing")
         ?.totalNilai ?? 0;
 
+    // Lead yang perlu di-follow-up sekarang (tanggal "next step" sudah lewat/
+    // jatuh tempo hari ini, atau — kalau belum diisi — sudah lama diam).
+    // Diurutkan: yang punya tanggal jatuh tempo paling awal dulu, lalu yang
+    // tidak punya tanggal (pakai tanggal update terlama).
+    const followUpLeads = leadsInBrand
+      .filter((lead) =>
+        needsFollowUp(lead.status, lead.tanggal_update, lead.next_step_due),
+      )
+      .sort((a, b) => {
+        const aKey = a.next_step_due?.slice(0, 10) ?? "9999-12-31";
+        const bKey = b.next_step_due?.slice(0, 10) ?? "9999-12-31";
+        if (aKey !== bKey) return aKey < bKey ? -1 : 1;
+        return a.tanggal_update < b.tanggal_update ? -1 : 1;
+      });
+
     return {
       totalLeads,
       perStatus,
@@ -82,6 +99,7 @@ export default function Dashboard({
       leadsMingguIni,
       pipelineAktif,
       nilaiClosing,
+      followUpLeads,
     };
   }, [leads, now, brandFilter]);
 
@@ -182,6 +200,70 @@ export default function Dashboard({
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+        <h2 className="font-medium mb-1">Needs follow-up</h2>
+        <p className="font-data text-xs text-[var(--color-muted)] mb-4">
+          {stats.followUpLeads.length} lead
+          {stats.followUpLeads.length === 1 ? "" : "s"} waiting on a next step
+        </p>
+        {stats.followUpLeads.length === 0 ? (
+          <p className="text-sm text-[var(--color-muted)]">
+            Nothing overdue. Nice.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {stats.followUpLeads.slice(0, 6).map((lead) => {
+              const state = nextStepState(lead.next_step_due);
+              return (
+                <li key={lead.id} className="flex justify-between gap-3 text-sm">
+                  <Link
+                    href={`/leads/${lead.id}`}
+                    className="font-medium hover:underline truncate"
+                  >
+                    {lead.nama}
+                  </Link>
+                  <span className="text-[var(--color-muted)] shrink-0 text-right">
+                    {lead.next_step ? (
+                      <>
+                        {lead.next_step}
+                        {lead.next_step_due && (
+                          <span
+                            className={
+                              state === "overdue"
+                                ? " text-[var(--color-danger)] font-medium"
+                                : state === "today"
+                                  ? " text-[var(--color-warning)] font-medium"
+                                  : ""
+                            }
+                          >
+                            {" · "}
+                            {new Date(lead.next_step_due).toLocaleDateString(
+                              "id-ID",
+                            )}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      `Idle since ${new Date(
+                        lead.tanggal_update,
+                      ).toLocaleDateString("id-ID")}`
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {stats.followUpLeads.length > 6 && (
+          <Link
+            href="/prospek"
+            className="text-sm text-accent hover:underline mt-3 inline-block"
+          >
+            View all in Prospects →
+          </Link>
+        )}
       </div>
     </main>
   );

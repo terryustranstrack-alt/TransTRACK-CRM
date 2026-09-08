@@ -67,6 +67,8 @@ export type Lead = {
   jabatan: string | null; // jabatan/peran orang ini di perusahaannya
   email: string | null; // alamat email lead (opsional)
   created_by_bot: boolean; // true kalau lead dibuat otomatis oleh chatbot
+  next_step: string | null; // langkah follow-up berikutnya (teks bebas)
+  next_step_due: string | null; // tanggal jatuh tempo langkah itu ("YYYY-MM-DD")
   brand_id: string | null; // brand pemilik lead ini (pool "belum diklaim")
   assigned_to: string | null; // id sales yang menangani (profiles.id)
   created_by: string | null;
