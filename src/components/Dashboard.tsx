@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
+import { groupDuplicates } from "@/lib/duplicates";
 import { LEAD_STATUSES, leadStatusLabel, type Lead } from "@/lib/types";
 
 const supabase = createClient();
@@ -92,6 +93,9 @@ export default function Dashboard({
         return a.tanggal_update < b.tanggal_update ? -1 : 1;
       });
 
+    // Grup lead yang nomor telepon / email-nya sama — kemungkinan duplikat.
+    const duplicateGroups = groupDuplicates(leadsInBrand);
+
     return {
       totalLeads,
       perStatus,
@@ -100,6 +104,7 @@ export default function Dashboard({
       pipelineAktif,
       nilaiClosing,
       followUpLeads,
+      duplicateGroups,
     };
   }, [leads, now, brandFilter]);
 
@@ -265,6 +270,23 @@ export default function Dashboard({
           </Link>
         )}
       </div>
+
+      {stats.duplicateGroups.length > 0 && (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+          <h2 className="font-medium mb-1">Possible duplicate leads</h2>
+          <p className="font-data text-xs text-[var(--color-muted)] mb-3">
+            {stats.duplicateGroups.length} group
+            {stats.duplicateGroups.length === 1 ? "" : "s"} of leads share a
+            phone or email
+          </p>
+          <Link
+            href="/prospek"
+            className="text-sm text-accent hover:underline"
+          >
+            Review in Prospects →
+          </Link>
+        </div>
+      )}
     </main>
   );
 }

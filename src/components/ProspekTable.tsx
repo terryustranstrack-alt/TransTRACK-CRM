@@ -16,13 +16,20 @@ import {
   leadToEditForm,
   type LeadEditForm,
 } from "@/lib/leadEdit";
-import { downloadCsv, leadsToCsv, parseLeadsCsv } from "@/lib/csv";
+import {
+  downloadCsv,
+  leadsToCsv,
+  parseLeadsCsv,
+  type NewLeadInput,
+} from "@/lib/csv";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
+import { groupDuplicates, sameContact } from "@/lib/duplicates";
 import {
   LEAD_STATUSES,
   leadStatusLabel,
   type Lead,
   type LeadStatus,
+  type Profile,
 } from "@/lib/types";
 
 // Ubah timestamp ISO jadi format "YYYY-MM-DD" versi waktu lokal browser,
@@ -57,6 +64,81 @@ const EMPTY_EDIT_FORM: LeadEditForm = {
   assigned_to: "",
 };
 
+// Tampilan "Possible duplicates": tiap kartu = satu grup lead yang nomor
+// telepon / email-nya sama. Admin dapat tombol untuk membuka layar merge
+// (menggabungkan dua lead pertama di grup); sales biasa hanya melihat
+// daftarnya (merge dibatasi admin).
+function DuplicatesPanel({
+  groups,
+  profiles,
+  isAdmin,
+}: {
+  groups: Lead[][];
+  profiles: Profile[];
+  isAdmin: boolean;
+}) {
+  if (groups.length === 0) {
+    return (
+      <p className="text-sm text-[var(--color-muted)] p-4 border border-[var(--color-border)] rounded-xl">
+        No possible duplicates found — every lead has a unique phone and email.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {groups.map((group) => (
+        <div
+          key={group[0].id}
+          className="border border-[var(--color-border)] rounded-xl p-4 flex flex-col gap-3"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">
+              {group.length} leads share a phone or email
+            </span>
+            {isAdmin && (
+              <Link
+                href={`/leads/${group[0].id}/merge?with=${group[1].id}`}
+                className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+              >
+                Review &amp; merge
+              </Link>
+            )}
+          </div>
+          <table className="w-full text-sm border-collapse">
+            <tbody>
+              {group.map((lead) => {
+                const owner = profiles.find((p) => p.id === lead.assigned_to);
+                return (
+                  <tr key={lead.id} className="border-t border-[var(--color-border)]">
+                    <td className="py-2 pr-3">
+                      <Link
+                        href={`/leads/${lead.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {lead.nama}
+                      </Link>
+                    </td>
+                    <td className="py-2 pr-3">{lead.kontak}</td>
+                    <td className="py-2 pr-3">{lead.email || "-"}</td>
+                    <td className="py-2 pr-3">{leadStatusLabel(lead.status)}</td>
+                    <td className="py-2 pr-3 text-[var(--color-muted)]">
+                      {owner ? profileLabel(owner) : "Unassigned"}
+                    </td>
+                    <td className="py-2 text-[var(--color-muted)] whitespace-nowrap">
+                      {new Date(lead.tanggal_masuk).toLocaleDateString("id-ID")}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Halaman "Prospects": tabel semua lead dengan pencarian, filter
 // follow-up/tanggal, edit inline per baris, serta export/import CSV.
 export default function ProspekTable() {
@@ -73,6 +155,7 @@ export default function ProspekTable() {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [showDuplicates, setShowDuplicates] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sumberOptions = useSumberOptions();
   const profiles = useProfiles();
@@ -122,6 +205,9 @@ export default function ProspekTable() {
     });
   }, [leads, search, followUpOnly, filterDate, brandFilter]);
 
+  // Grup lead yang nomor/email-nya sama — untuk tampilan "Possible duplicates".
+  const duplicateGroups = useMemo(() => groupDuplicates(leads), [leads]);
+
   // Baca file CSV yang dipilih user, parse jadi baris-baris lead lewat
   // parseLeadsCsv, lalu insert semuanya sekaligus ke database.
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -143,7 +229,35 @@ export default function ProspekTable() {
       return;
     }
 
-    const { error } = await supabase.from("leads").insert(rows);
+    // Lewati baris yang nomor/email-nya sama dengan lead yang sudah ada, atau
+    // sama dengan baris lain yang lebih dulu di file yang sama.
+    const kept: NewLeadInput[] = [];
+    const duplicateNames: string[] = [];
+    for (const row of rows) {
+      const against = { kontak: row.kontak, email: row.email };
+      const matchesExisting = leads.some((lead) => sameContact(against, lead));
+      const matchesEarlierRow = kept.some((k) =>
+        sameContact(against, { kontak: k.kontak, email: k.email }),
+      );
+      if (matchesExisting || matchesEarlierRow) {
+        duplicateNames.push(row.nama);
+        continue;
+      }
+      kept.push(row);
+    }
+
+    if (kept.length === 0) {
+      setImportMessage(
+        `Nothing imported — all ${duplicateNames.length} row(s) look like duplicates` +
+          (skipped > 0
+            ? `, plus ${skipped} skipped for missing name/contact.`
+            : "."),
+      );
+      setImporting(false);
+      return;
+    }
+
+    const { error } = await supabase.from("leads").insert(kept);
 
     setImporting(false);
 
@@ -152,10 +266,18 @@ export default function ProspekTable() {
       return;
     }
 
-    setImportMessage(
-      `${rows.length} prospect(s) imported successfully` +
-        (skipped > 0 ? `, ${skipped} row(s) skipped.` : "."),
-    );
+    // Ringkasan: berapa masuk, berapa dilewati karena duplikat (dengan
+    // sebagian namanya), berapa dilewati karena data kurang.
+    const parts = [`${kept.length} prospect(s) imported`];
+    if (duplicateNames.length > 0) {
+      const preview = duplicateNames.slice(0, 5).join(", ");
+      const more = duplicateNames.length > 5 ? "…" : "";
+      parts.push(
+        `${duplicateNames.length} skipped as likely duplicates (${preview}${more})`,
+      );
+    }
+    if (skipped > 0) parts.push(`${skipped} skipped for missing name/contact`);
+    setImportMessage(parts.join("; ") + ".");
     loadLeads();
   }
 
@@ -317,6 +439,19 @@ export default function ProspekTable() {
           >
             {importing ? "Importing..." : "Import CSV"}
           </button>
+          <button
+            type="button"
+            onClick={() => setShowDuplicates((v) => !v)}
+            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)]"
+          >
+            {showDuplicates
+              ? "Back to list"
+              : `Possible duplicates${
+                  duplicateGroups.length > 0
+                    ? ` (${duplicateGroups.length})`
+                    : ""
+                }`}
+          </button>
         </div>
       </div>
 
@@ -324,6 +459,13 @@ export default function ProspekTable() {
         <p className="text-sm text-[var(--color-muted)]">{importMessage}</p>
       )}
 
+      {showDuplicates ? (
+        <DuplicatesPanel
+          groups={duplicateGroups}
+          profiles={profiles}
+          isAdmin={!!currentProfile?.is_admin}
+        />
+      ) : (
       <div className="overflow-x-auto border border-[var(--color-border)] rounded-xl">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -591,6 +733,7 @@ export default function ProspekTable() {
           </tbody>
         </table>
       </div>
+      )}
     </main>
   );
 }

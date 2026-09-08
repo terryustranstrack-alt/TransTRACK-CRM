@@ -2,6 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  checkLeadDuplicates,
+  type DuplicateMatch,
+} from "@/app/leads/actions";
 import { useSumberOptions } from "@/lib/useSumberOptions";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
@@ -44,10 +48,11 @@ type LeadFormProps = {
   lockContact?: boolean;
 };
 
-// Form "Add New Lead". Sebelum benar-benar simpan, dicek dulu apakah
-// nomor kontak sudah pernah terdaftar — kalau iya, tampilkan peringatan dan
-// minta konfirmasi sekali lagi sebelum tetap menyimpan (mencegah duplikat
-// tidak sengaja, tapi tetap mengizinkan kalau memang disengaja).
+// Form "Add New Lead". Sebelum benar-benar simpan, dicek dulu apakah nomor
+// telepon / email-nya sudah dipakai lead lain (termasuk lead milik sales
+// lain, lewat server action checkLeadDuplicates). Kalau ada yang cocok,
+// tampilkan peringatan berisi nama + pemilik + status lead itu, dan minta
+// konfirmasi sekali lagi ("Save Anyway") sebelum tetap menyimpan.
 //
 // Dipakai di dua tempat: halaman "/leads/baru" (berdiri sendiri) dan panel
 // "New Lead" di Inbox (dengan initialValues + onSaved).
@@ -88,6 +93,12 @@ export default function LeadForm({
     setDuplicateWarning(null);
   }
 
+  // Sama untuk email — peringatan lama tidak lagi relevan kalau email berubah.
+  function updateEmail(email: string) {
+    setForm({ ...form, email });
+    setDuplicateWarning(null);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -97,20 +108,26 @@ export default function LeadForm({
     // — begitu user klik "Save Anyway" (duplicateWarning sudah terisi),
     // langsung lanjut simpan tanpa cek ulang.
     if (!duplicateWarning) {
-      const { data: leadsWithSameContact, error: cekError } = await supabase
-        .from("leads")
-        .select("nama")
-        .eq("kontak", form.kontak);
-
-      if (cekError) {
-        setError(cekError.message);
-        return;
+      let matches: DuplicateMatch[];
+      try {
+        matches = await checkLeadDuplicates({
+          kontak: form.kontak,
+          email: form.email,
+        });
+      } catch {
+        // Kalau pengecekan gagal, jangan blokir — biarkan simpan lanjut.
+        matches = [];
       }
 
-      if (leadsWithSameContact && leadsWithSameContact.length > 0) {
-        const namaLain = leadsWithSameContact.map((l) => l.nama).join(", ");
+      if (matches.length > 0) {
+        const list = matches
+          .map((m) => {
+            const owner = m.owner ? `owned by ${m.owner}` : "unassigned";
+            return `${m.nama} (${m.kontak}, ${m.status}, ${owner})`;
+          })
+          .join("; ");
         setDuplicateWarning(
-          `This contact is already registered under: ${namaLain}. Click "Save Anyway" to continue.`,
+          `Possible duplicate — this phone/email already belongs to: ${list}. Click "Save Anyway" to add it regardless.`,
         );
         return;
       }
@@ -208,7 +225,7 @@ export default function LeadForm({
           id="email"
           type="email"
           value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          onChange={(e) => updateEmail(e.target.value)}
           className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </div>

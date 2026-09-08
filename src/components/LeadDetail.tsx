@@ -273,6 +273,14 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
           )}
         </div>
         <div className="flex shrink-0 gap-2">
+          {!isEditing && currentProfile?.is_admin && (
+            <Link
+              href={`/leads/${lead.id}/merge`}
+              className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-1.5 hover:bg-[var(--color-muted-bg)]"
+            >
+              Merge
+            </Link>
+          )}
           {!isEditing && (
             <button
               type="button"
