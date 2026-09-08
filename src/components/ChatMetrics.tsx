@@ -162,7 +162,7 @@ export default function ChatMetrics({
 
   if (loading) {
     return (
-      <section className="px-8 pb-8 max-w-3xl">
+      <section className="px-4 sm:px-8 pb-8 max-w-3xl">
         <p className="text-sm text-[var(--color-muted)]">Loading chat metrics…</p>
       </section>
     );
@@ -171,10 +171,10 @@ export default function ChatMetrics({
   const maxCount = Math.max(1, ...stats.perSales.map((s) => s.count));
 
   return (
-    <section className="px-8 pb-8 flex flex-col gap-4 max-w-3xl">
+    <section className="px-4 sm:px-8 pb-8 flex flex-col gap-4 max-w-3xl">
       <h2 className="font-medium">WhatsApp Inbox</h2>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
           <p className="text-xs text-[var(--color-muted)]">Open conversations</p>
           <p className="font-data text-2xl font-semibold mt-1">{stats.openCount}</p>

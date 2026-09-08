@@ -53,6 +53,8 @@ export default function LeadContextPanel({
   profiles,
   currentProfile,
   onChanged,
+  mobileOpen = false,
+  onCloseMobile,
 }: {
   conversation: Conversation;
   lead: Lead | null;
@@ -60,6 +62,10 @@ export default function LeadContextPanel({
   profiles: Profile[];
   currentProfile: Profile | null;
   onChanged: () => void;
+  // Di telepon panel ini jadi drawer layar penuh; di desktop tetap kolom
+  // ketiga yang selalu tampil (props ini diabaikan lewat breakpoint `lg:`).
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }) {
   const isAdmin = !!currentProfile?.is_admin;
   const sumberOptions = useSumberOptions();
@@ -177,7 +183,22 @@ export default function LeadContextPanel({
   const showPicker = !lead || changing;
 
   return (
-    <aside className="w-80 shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto p-3 text-sm flex flex-col gap-3">
+    <aside
+      className={`w-full lg:w-80 lg:shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto p-3 text-sm flex-col gap-3 lg:static lg:flex ${
+        mobileOpen ? "flex fixed inset-0 z-50" : "hidden lg:flex"
+      }`}
+    >
+      <div className="lg:hidden flex items-center justify-between mb-1">
+        <span className="font-semibold text-base">Lead</span>
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          aria-label="Close"
+          className="p-1 text-[var(--color-muted)] hover:text-foreground text-lg leading-none"
+        >
+          ✕
+        </button>
+      </div>
       {error && <p className="text-[var(--color-danger)] text-xs">{error}</p>}
 
       {showPicker ? (

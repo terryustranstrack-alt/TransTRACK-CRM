@@ -18,7 +18,7 @@ export default function DashboardView() {
   return (
     <>
       {currentProfile?.is_admin && brands.length > 1 && (
-        <div className="px-8 pt-6">
+        <div className="px-4 sm:px-8 pt-6">
           <select
             value={brandFilter}
             onChange={(e) => setBrandFilter(e.target.value)}

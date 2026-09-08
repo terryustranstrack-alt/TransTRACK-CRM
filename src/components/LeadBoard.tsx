@@ -141,7 +141,7 @@ function LeadColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-shrink-0 w-64 rounded-lg ${isOver ? "bg-[var(--color-muted-bg)]" : ""}`}
+      className={`flex-shrink-0 w-64 rounded-lg snap-start ${isOver ? "bg-[var(--color-muted-bg)]" : ""}`}
     >
       <h2 className="font-semibold mb-3">
         {leadStatusLabel(status)} ({leads.length})
@@ -276,7 +276,7 @@ export default function LeadBoard() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-8">
+    <div className="flex flex-col gap-4 p-4 sm:p-8">
       <div className="flex flex-wrap gap-3">
         <input
           type="text"
@@ -332,7 +332,7 @@ export default function LeadBoard() {
         )}
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto">
+        <div className="flex gap-4 overflow-x-auto snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
           {LEAD_STATUSES.map((status) => (
             <LeadColumn
               key={status}

@@ -167,7 +167,7 @@ export default function MergeLeads({
   }
   if (!isAdmin) {
     return (
-      <main className="p-8 max-w-lg flex flex-col gap-4">
+      <main className="p-4 sm:p-8 max-w-lg flex flex-col gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Merge leads</h1>
         <p className="text-sm text-[var(--color-muted)]">
           Only admins can merge leads. Ask an admin to combine these records.
@@ -183,7 +183,7 @@ export default function MergeLeads({
   }
 
   return (
-    <main className="p-8 max-w-3xl flex flex-col gap-6">
+    <main className="p-4 sm:p-8 max-w-3xl flex flex-col gap-6">
       <Link
         href={`/leads/${primary.id}`}
         className="text-sm text-[var(--color-muted)] hover:underline self-start"

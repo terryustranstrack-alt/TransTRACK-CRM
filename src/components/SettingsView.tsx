@@ -114,7 +114,7 @@ export default function SettingsView() {
   }
 
   return (
-    <main className="p-8 flex flex-col gap-8 max-w-2xl">
+    <main className="p-4 sm:p-8 flex flex-col gap-8 max-w-2xl">
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
 
       <section className="flex flex-col gap-3">

@@ -127,7 +127,7 @@ export default function SalesTable() {
   }
 
   return (
-    <main className="p-8 flex flex-col gap-4">
+    <main className="p-4 sm:p-8 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Sales Team</h1>
         <button

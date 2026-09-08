@@ -17,15 +17,16 @@ const ADMIN_MENU = [
   { href: "/settings", label: "Settings" },
 ];
 
-// Navigasi bar di header, disembunyikan otomatis kalau belum login (lihat
-// layout.tsx: NavMenu hanya dirender saat `user` ada).
+// Navigasi bar di header (desktop). Di layar telepon (<640px) diganti oleh
+// MobileNav — bottom tab bar — jadi di sini disembunyikan (`hidden sm:flex`).
+// NavMenu hanya dirender saat `user` ada (lihat layout.tsx).
 export default function NavMenu({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const { totalUnread } = useInboxUnread();
   const items = isAdmin ? [...MENU, ...ADMIN_MENU] : MENU;
 
   return (
-    <nav className="flex gap-1">
+    <nav className="hidden sm:flex gap-1">
       {items.map((item) => {
         const active = pathname === item.href;
         const showBadge = item.href === "/inbox" && totalUnread > 0;

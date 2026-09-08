@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function Home() {
   return (
     <main className="flex flex-col flex-1">
-      <div className="flex items-center justify-between px-8 pt-8">
+      <div className="flex items-center justify-between px-4 pt-4 sm:px-8 sm:pt-8">
         <h1 className="text-2xl font-semibold tracking-tight">Lead Pipeline</h1>
         <Link
           href="/leads/baru"

@@ -105,6 +105,7 @@ function DuplicatesPanel({
               </Link>
             )}
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <tbody>
               {group.map((lead) => {
@@ -133,6 +134,7 @@ function DuplicatesPanel({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       ))}
     </div>
@@ -353,7 +355,7 @@ export default function ProspekTable() {
   }
 
   return (
-    <main className="p-8 flex flex-col gap-4">
+    <main className="p-4 sm:p-8 flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Prospects</h1>

@@ -247,7 +247,7 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
   if (!lead) return <p className="p-8 text-sm text-[var(--color-muted)]">Lead not found.</p>;
 
   return (
-    <main className="p-8 max-w-2xl flex flex-col gap-6">
+    <main className="p-4 sm:p-8 max-w-2xl flex flex-col gap-6">
       <Link
         href="/"
         className="text-sm text-[var(--color-muted)] hover:text-foreground hover:underline self-start"
@@ -255,7 +255,7 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
         ← Back to Board
       </Link>
 
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{lead.nama}</h1>
           <p className="text-sm text-[var(--color-muted)]">
@@ -272,7 +272,7 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
             </Link>
           )}
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 gap-2 flex-wrap">
           {!isEditing && currentProfile?.is_admin && (
             <Link
               href={`/leads/${lead.id}/merge`}

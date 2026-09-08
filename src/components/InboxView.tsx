@@ -140,6 +140,8 @@ export default function InboxView() {
   const [messageHits, setMessageHits] = useState<MessageSearchHit[] | null>(null);
   const [draftText, setDraftText] = useState("");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  // Di layar telepon panel lead tampil sebagai drawer (bukan kolom ketiga).
+  const [showLeadPanel, setShowLeadPanel] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,8 +200,10 @@ export default function InboxView() {
   // dibaca: reset unread_count DAN kirim tanda "dibaca" (centang biru) ke
   // WhatsApp untuk pesan masuk terakhir.
   useEffect(() => {
+    // Percakapan berganti — tutup picker template & drawer lead (mobile).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowTemplatePicker(false);
+    setShowLeadPanel(false);
     if (!selectedConversation || selectedConversation.unread_count === 0) return;
     markConversationRead(selectedConversation.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -314,8 +318,14 @@ export default function InboxView() {
   }
 
   return (
-    <main className="flex flex-1 h-[calc(100vh-56px)]">
-      <aside className="w-80 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col min-h-0">
+    <main className="flex flex-1 min-h-0">
+      {/* Daftar percakapan: layar penuh di telepon, sembunyi saat sebuah
+          percakapan dibuka; kolom tetap 320px di desktop (`lg:`). */}
+      <aside
+        className={`w-full lg:w-80 lg:shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex-col min-h-0 ${
+          selectedConversationId ? "hidden lg:flex" : "flex"
+        }`}
+      >
         <div className="border-b border-[var(--color-border)] shrink-0">
           <h1 className="px-4 pt-3 text-lg font-semibold">WhatsApp Inbox</h1>
           <div className="px-3 py-2">
@@ -449,16 +459,33 @@ export default function InboxView() {
         </div>
       </aside>
 
-      <section className="flex-1 flex flex-col min-h-0 bg-background">
+      {/* Panel chat: di telepon jadi overlay layar penuh saat sebuah
+          percakapan dibuka (menutupi header + bottom nav, punya tombol
+          "back" sendiri); di desktop tetap kolom tengah biasa. */}
+      <section
+        className={`flex-col min-h-0 bg-background lg:static lg:flex lg:flex-1 ${
+          selectedConversation ? "flex fixed inset-0 z-40" : "hidden lg:flex"
+        }`}
+      >
         {!selectedConversation ? (
-          <p className="p-8 text-[var(--color-muted)] text-sm">
+          <p className="hidden lg:block p-8 text-[var(--color-muted)] text-sm">
             Select a conversation on the left.
           </p>
         ) : (
           <>
-            <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 flex items-center justify-between gap-4 shrink-0">
-              <div className="min-w-0">
-                <p className="font-medium">{contactLabel(selectedConversation)}</p>
+            <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setSelectedConversationId(null)}
+                aria-label="Back to conversations"
+                className="lg:hidden -ml-1 p-1 text-[var(--color-muted)] hover:text-foreground shrink-0"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium truncate">{contactLabel(selectedConversation)}</p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-muted)]">
                   <span>
                     {linkedLead ? (
@@ -498,7 +525,14 @@ export default function InboxView() {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowLeadPanel(true)}
+                className="lg:hidden text-sm border border-[var(--color-border)] rounded-lg px-3 py-1.5 hover:bg-[var(--color-muted-bg)] shrink-0"
+              >
+                Lead
+              </button>
+              <div className="flex gap-2 shrink-0 flex-wrap justify-end">
                 {!selectedConversation.assigned_to && (
                   <button
                     type="button"
@@ -535,7 +569,7 @@ export default function InboxView() {
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className={`max-w-md rounded-2xl px-3 py-2 text-sm ${
+                  className={`max-w-[80%] sm:max-w-md rounded-2xl px-3 py-2 text-sm ${
                     m.direction === "outbound"
                       ? "self-end bg-brand text-on-brand"
                       : "self-start bg-[var(--color-muted-bg)]"
@@ -605,7 +639,7 @@ export default function InboxView() {
                     e.preventDefault();
                     handleSend();
                   }}
-                  className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-4 flex gap-2 shrink-0"
+                  className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3 sm:p-4 flex flex-wrap gap-2 shrink-0"
                 >
                   <input
                     ref={fileInputRef}
@@ -639,7 +673,7 @@ export default function InboxView() {
                     value={draftText}
                     onChange={(e) => setDraftText(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+                    className="order-first sm:order-none basis-full sm:basis-0 flex-1 min-w-0 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
                   />
                   <button
                     type="submit"
@@ -663,6 +697,8 @@ export default function InboxView() {
           profiles={profiles}
           currentProfile={currentProfile}
           onChanged={loadLeads}
+          mobileOpen={showLeadPanel}
+          onCloseMobile={() => setShowLeadPanel(false)}
         />
       )}
     </main>

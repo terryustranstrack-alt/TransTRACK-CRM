@@ -159,7 +159,7 @@ export default function Dashboard({
   };
 
   return (
-    <main className="p-8 flex flex-col gap-8 max-w-3xl">
+    <main className="p-4 sm:p-8 flex flex-col gap-8 max-w-3xl">
       <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
