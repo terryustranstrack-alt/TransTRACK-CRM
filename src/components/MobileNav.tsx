@@ -4,6 +4,7 @@ import { useState, type SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useInboxUnread } from "@/components/InboxUnreadProvider";
+import PushToggle from "@/components/PushToggle";
 
 // Ikon garis sederhana (tanpa library ikon — lihat aturan proyek #4).
 // Semua 24x24, mewarisi warna dari `currentColor`.
@@ -112,6 +113,9 @@ export default function MobileNav({ isAdmin }: { isAdmin: boolean }) {
                 {link.label}
               </Link>
             ))}
+            <div className="border-t border-[var(--color-border)] px-4 py-3 text-sm">
+              <PushToggle />
+            </div>
           </div>
         </>
       )}

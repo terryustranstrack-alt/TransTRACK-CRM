@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logWhatsappActivity } from "@/lib/activity";
 import { getBrandPhoneNumberId } from "@/lib/brands";
+import { sendPushToProfiles } from "@/lib/push";
 import type { ConversationStatus } from "@/lib/types";
 import {
   listMessageTemplates,
@@ -579,6 +580,23 @@ export async function transferConversation(
     .eq("id", conversationId);
 
   if (error) return { error: error.message };
+
+  // Beri tahu sales penerima lewat notifikasi push (kecuali dia sendiri yang
+  // mengambil percakapan ini).
+  if (toProfileId && toProfileId !== user.id) {
+    const { data: conv } = await admin
+      .from("conversations")
+      .select("display_name, external_contact_id")
+      .eq("id", conversationId)
+      .single();
+    await sendPushToProfiles(admin, [toProfileId], {
+      title: "Chat assigned to you",
+      body: conv?.display_name || conv?.external_contact_id || "WhatsApp chat",
+      url: "/inbox",
+      tag: `chat-${conversationId}`,
+    });
+  }
+
   revalidatePath("/inbox");
   return { success: true };
 }

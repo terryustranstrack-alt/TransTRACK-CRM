@@ -25,6 +25,7 @@ import {
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { useLeadStatusChange } from "@/components/CloseReasonDialog";
 import { useSavedFilters, type ProspectFilters } from "@/lib/useSavedFilters";
+import { notifyLeadsAssigned } from "@/app/push/actions";
 import { groupDuplicates, sameContact } from "@/lib/duplicates";
 import {
   matchesDateRange,
@@ -344,6 +345,7 @@ export default function ProspekTable() {
       const activityError = await logNote(supabase, id, `Assigned to: ${label}.`);
       if (activityError) setError(activityError);
     }
+    void notifyLeadsAssigned(ids, assignedTo);
     setSelectedIds(new Set());
     loadLeads();
   }
@@ -478,6 +480,10 @@ export default function ProspekTable() {
         `Lead data updated: ${changedLabels.join(", ")}.`,
       );
       if (activityError) setError(activityError);
+    }
+    // Lead dipindah ke sales lain → kirim notifikasi push ke sales itu.
+    if (update.assigned_to !== lead.assigned_to) {
+      void notifyLeadsAssigned([lead.id], update.assigned_to as string | null);
     }
 
     setSaving(false);

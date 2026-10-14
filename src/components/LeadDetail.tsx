@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { logNote } from "@/lib/activity";
 import { useLeadStatusChange } from "@/components/CloseReasonDialog";
 import LeadTimeline from "@/components/LeadTimeline";
+import { notifyLeadsAssigned } from "@/app/push/actions";
 import {
   buildLeadUpdate,
   leadToEditForm,
@@ -197,6 +198,10 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
         `Lead data updated: ${changedLabels.join(", ")}.`,
       );
       if (activityError) setError(activityError);
+    }
+    // Lead dipindah ke sales lain → kirim notifikasi push ke sales itu.
+    if (update.assigned_to !== lead.assigned_to) {
+      void notifyLeadsAssigned([leadId], update.assigned_to as string | null);
     }
 
     setSaving(false);

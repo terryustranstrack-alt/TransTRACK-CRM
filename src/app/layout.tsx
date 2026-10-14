@@ -9,6 +9,7 @@ import NavMenu from "@/components/NavMenu";
 import MobileNav from "@/components/MobileNav";
 import InboxUnreadProvider from "@/components/InboxUnreadProvider";
 import InboxNotifier from "@/components/InboxNotifier";
+import PushToggle from "@/components/PushToggle";
 
 // UI/body face: a step away from the Inter-everywhere look most SaaS
 // dashboards default to, while staying just as legible for forms and tables.
@@ -27,6 +28,10 @@ const dataFont = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "TransTRACK CRM",
   description: "Track sales lead progress.",
+  // Supaya di iPhone, "Add to Home Screen" membuka CRM seperti aplikasi
+  // (layar penuh) — syarat dari Apple untuk bisa menerima notifikasi push.
+  appleWebApp: { capable: true, title: "TransTRACK", statusBarStyle: "default" },
+  icons: { apple: "/logo.png" },
 };
 
 // viewportFit "cover" + safe-area padding di bawah supaya bottom nav di
@@ -83,6 +88,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <div className="hidden sm:flex">
                   <InboxNotifier />
                 </div>
+                <PushToggle className="hidden sm:inline text-xs" />
                 <span className="hidden sm:inline font-data text-xs text-[var(--color-muted)]">
                   {user.email}
                 </span>

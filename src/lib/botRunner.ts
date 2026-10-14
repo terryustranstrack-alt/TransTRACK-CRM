@@ -9,6 +9,7 @@ import {
   type BotHistoryTurn,
 } from "@/lib/groq";
 import { logWhatsappActivity } from "@/lib/activity";
+import { brandTeamIds, sendPushToProfiles } from "@/lib/push";
 import type { BotConfig } from "@/lib/types";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -605,4 +606,29 @@ async function handOffToSales(
     leadId,
     "Bot collected a qualified lead and handed off for sales follow-up.",
   );
+  await notifyHandoff(admin, conv, leadId);
+}
+
+// Notifikasi push "lead siap di-follow-up": ke sales yang memegang
+// percakapan kalau sudah ada, kalau belum ke seluruh tim brand (+ admin)
+// supaya ada yang cepat mengambilnya.
+async function notifyHandoff(
+  admin: AdminClient,
+  conv: { assigned_to: string | null; brand_id: string | null },
+  leadId: string,
+): Promise<void> {
+  const { data: lead } = await admin
+    .from("leads")
+    .select("nama, perusahaan")
+    .eq("id", leadId)
+    .single();
+  const recipients = conv.assigned_to
+    ? [conv.assigned_to]
+    : await brandTeamIds(admin, conv.brand_id);
+  await sendPushToProfiles(admin, recipients, {
+    title: "🔥 Hot lead ready for follow-up",
+    body: [lead?.nama, lead?.perusahaan].filter(Boolean).join(" · ") || "New lead",
+    url: `/leads/${leadId}`,
+    tag: `handoff-${leadId}`,
+  });
 }

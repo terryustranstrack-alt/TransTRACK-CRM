@@ -13,6 +13,7 @@ import { useBrands } from "@/lib/useBrands";
 import SumberSelect from "@/components/SumberSelect";
 import AssigneeSelect from "@/components/AssigneeSelect";
 import CurrencyInput from "@/components/CurrencyInput";
+import { notifyLeadsAssigned } from "@/app/push/actions";
 
 const supabase = createClient();
 
@@ -167,6 +168,11 @@ export default function LeadForm({
     if (error || !newLead) {
       setError(error?.message ?? "Failed to save lead.");
       return;
+    }
+
+    // Admin langsung menyerahkan lead baru ke seorang sales → beri tahu dia.
+    if (currentProfile?.is_admin && form.assigned_to) {
+      void notifyLeadsAssigned([newLead.id], form.assigned_to);
     }
 
     setForm({ ...EMPTY_FORM, ...initialValues });
