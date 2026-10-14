@@ -383,6 +383,9 @@ export async function syncTemplates(): Promise<InboxActionState> {
   }
 
   const admin = createAdminClient();
+  // Satu cap waktu untuk seluruh sync ini — dipakai di bawah untuk mengenali
+  // template lama yang tidak ikut terbarui (sudah dihapus di Meta).
+  const syncedAt = new Date().toISOString();
   const rows = templates.map((t) => ({
     name: t.name,
     language: t.language,
@@ -392,13 +395,25 @@ export async function syncTemplates(): Promise<InboxActionState> {
     variable_count: t.variableCount,
     header_format: t.headerFormat,
     components: t.components,
-    synced_at: new Date().toISOString(),
+    synced_at: syncedAt,
   }));
 
-  const { error } = await admin
+  if (rows.length > 0) {
+    const { error } = await admin
+      .from("whatsapp_templates")
+      .upsert(rows, { onConflict: "name,language" });
+    if (error) return { error: error.message };
+  }
+
+  // Buang template yang sudah tidak ada di Meta (dihapus, atau milik akun
+  // WhatsApp lama setelah ganti nomor) — yaitu yang tidak ikut terbarui di
+  // sync ini. Tanpa ini, template basi tetap tampil "APPROVED" padahal
+  // gagal saat dikirim.
+  const { error: cleanupError } = await admin
     .from("whatsapp_templates")
-    .upsert(rows, { onConflict: "name,language" });
-  if (error) return { error: error.message };
+    .delete()
+    .lt("synced_at", syncedAt);
+  if (cleanupError) return { error: cleanupError.message };
 
   revalidatePath("/settings");
   revalidatePath("/inbox");
