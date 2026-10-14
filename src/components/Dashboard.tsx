@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { groupDuplicates } from "@/lib/duplicates";
 import SourceReport from "@/components/SourceReport";
+import ForecastCard from "@/components/ForecastCard";
 import { LEAD_STATUSES, leadStatusLabel, type Lead } from "@/lib/types";
 
 const supabase = createClient();
@@ -208,6 +209,8 @@ export default function Dashboard({
           ))}
         </div>
       </div>
+
+      <ForecastCard leads={stats.leadsInBrand} />
 
       <SourceReport leads={stats.leadsInBrand} />
 

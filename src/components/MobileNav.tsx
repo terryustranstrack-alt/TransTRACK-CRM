@@ -67,8 +67,10 @@ const TABS = [
   { href: "/inbox", label: "Inbox", Icon: IconInbox },
 ];
 
-// Menu "More" khusus admin (halaman ini tidak terlihat oleh sales biasa).
-const MORE_LINKS = [
+// Menu "More": Leaderboard untuk semua user, sisanya khusus admin
+// (Sales & Settings tidak terlihat oleh sales biasa).
+const MORE_LINKS = [{ href: "/leaderboard", label: "Leaderboard" }];
+const ADMIN_MORE_LINKS = [
   { href: "/sales", label: "Sales" },
   { href: "/settings", label: "Settings" },
 ];
@@ -86,7 +88,7 @@ export default function MobileNav({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-[var(--color-border)] bg-[var(--color-surface)] pb-[env(safe-area-inset-bottom)]">
-      {moreOpen && isAdmin && (
+      {moreOpen && (
         <>
           {/* Lapisan tembus pandang untuk menutup menu saat disentuh di luar. */}
           <button
@@ -96,7 +98,7 @@ export default function MobileNav({ isAdmin }: { isAdmin: boolean }) {
             className="fixed inset-0 z-0 cursor-default"
           />
           <div className="absolute bottom-full right-2 mb-2 z-10 min-w-36 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg overflow-hidden">
-            {MORE_LINKS.map((link) => (
+            {(isAdmin ? [...MORE_LINKS, ...ADMIN_MORE_LINKS] : MORE_LINKS).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -138,18 +140,16 @@ export default function MobileNav({ isAdmin }: { isAdmin: boolean }) {
             </Link>
           );
         })}
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setMoreOpen((v) => !v)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
-              moreOpen ? "text-accent" : "text-[var(--color-muted)]"
-            }`}
-          >
-            <IconMore className="w-6 h-6" />
-            More
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setMoreOpen((v) => !v)}
+          className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
+            moreOpen ? "text-accent" : "text-[var(--color-muted)]"
+          }`}
+        >
+          <IconMore className="w-6 h-6" />
+          More
+        </button>
       </div>
     </nav>
   );

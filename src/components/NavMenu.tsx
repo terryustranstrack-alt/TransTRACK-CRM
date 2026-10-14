@@ -9,6 +9,7 @@ const MENU = [
   { href: "/", label: "Board" },
   { href: "/prospek", label: "Prospects" },
   { href: "/inbox", label: "Inbox" },
+  { href: "/leaderboard", label: "Leaderboard" },
 ];
 
 // Menu khusus admin — sales biasa tidak punya akses ke halaman-halaman ini.
