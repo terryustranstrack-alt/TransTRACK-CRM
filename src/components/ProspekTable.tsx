@@ -25,24 +25,18 @@ import {
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { groupDuplicates, sameContact } from "@/lib/duplicates";
 import {
+  matchesDateRange,
+  matchesKeyword,
+  matchesSource,
+  type LeadDateField,
+} from "@/lib/leadFilters";
+import {
   LEAD_STATUSES,
   leadStatusLabel,
   type Lead,
   type LeadStatus,
   type Profile,
 } from "@/lib/types";
-
-// Ubah timestamp ISO jadi format "YYYY-MM-DD" versi waktu lokal browser,
-// supaya bisa dicocokkan dengan nilai <input type="date"> (filter tanggal).
-// Tidak pakai iso.slice(0, 10) karena itu tanggal UTC, bisa beda hari
-// dengan tanggal lokal pengguna.
-function toLocalDateInputValue(iso: string): string {
-  const d = new Date(iso);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 const supabase = createClient();
 
@@ -149,7 +143,10 @@ export default function ProspekTable() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [followUpOnly, setFollowUpOnly] = useState(false);
-  const [filterDate, setFilterDate] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [dateField, setDateField] = useState<LeadDateField>("tanggal_masuk");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [brandFilter, setBrandFilter] = useState("all");
   const brands = useBrands();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -183,29 +180,60 @@ export default function ProspekTable() {
     loadLeads();
   }, []);
 
-  // Terapkan pencarian nama + filter follow-up + filter tanggal sekaligus
-  // ke daftar lead. Dihitung ulang otomatis tiap kali salah satu filter
-  // berubah (useMemo).
+  // Terapkan semua filter sekaligus ke daftar lead: pencarian (semua kolom,
+  // termasuk nama sales & status), sumber, follow-up, rentang tanggal, dan
+  // brand. Dihitung ulang otomatis tiap kali salah satu filter berubah
+  // (useMemo).
   const filteredLeads = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
     return leads.filter((lead) => {
-      if (keyword && !lead.nama.toLowerCase().includes(keyword)) return false;
+      const assignee = profiles.find((p) => p.id === lead.assigned_to);
+      const extraText = [
+        leadStatusLabel(lead.status),
+        assignee ? profileLabel(assignee) : "",
+      ];
+      if (!matchesKeyword(lead, search, extraText)) return false;
+      if (!matchesSource(lead, sourceFilter)) return false;
       if (
         followUpOnly &&
         !needsFollowUp(lead.status, lead.tanggal_update, lead.next_step_due)
       ) {
         return false;
       }
-      if (
-        filterDate &&
-        toLocalDateInputValue(lead.tanggal_update) !== filterDate
-      ) {
-        return false;
-      }
+      if (!matchesDateRange(lead, dateField, dateFrom, dateTo)) return false;
       if (brandFilter !== "all" && lead.brand_id !== brandFilter) return false;
       return true;
     });
-  }, [leads, search, followUpOnly, filterDate, brandFilter]);
+  }, [
+    leads,
+    profiles,
+    search,
+    sourceFilter,
+    followUpOnly,
+    dateField,
+    dateFrom,
+    dateTo,
+    brandFilter,
+  ]);
+
+  // Ada filter yang sedang aktif? Dipakai untuk menampilkan tombol
+  // "Clear filters".
+  const hasActiveFilters =
+    search.trim() !== "" ||
+    sourceFilter !== "all" ||
+    followUpOnly ||
+    dateFrom !== "" ||
+    dateTo !== "" ||
+    brandFilter !== "all";
+
+  // Kembalikan semua filter ke kondisi awal (tampilkan semua lead).
+  function clearFilters() {
+    setSearch("");
+    setSourceFilter("all");
+    setFollowUpOnly(false);
+    setDateFrom("");
+    setDateTo("");
+    setBrandFilter("all");
+  }
 
   // Grup lead yang nomor/email-nya sama — untuk tampilan "Possible duplicates".
   const duplicateGroups = useMemo(() => groupDuplicates(leads), [leads]);
@@ -371,9 +399,21 @@ export default function ProspekTable() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name..."
+            placeholder="Search name, source, company, phone..."
             className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm w-64"
           />
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="all">All sources</option>
+            {sumberOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
           {currentProfile?.is_admin && brands.length > 1 && (
             <select
               value={brandFilter}
@@ -396,19 +436,42 @@ export default function ProspekTable() {
             />
             Needs follow-up
           </label>
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
-          />
-          {filterDate && (
+          <div className="flex flex-wrap items-center gap-2 border border-[var(--color-border)] rounded-lg px-3 py-1 text-sm">
+            <select
+              value={dateField}
+              onChange={(e) => setDateField(e.target.value as LeadDateField)}
+              aria-label="Date to filter by"
+              className="bg-transparent py-1"
+            >
+              <option value="tanggal_masuk">Date added</option>
+              <option value="tanggal_update">Last updated</option>
+            </select>
+            <span className="text-[var(--color-muted)]">from</span>
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+              aria-label="From date"
+              className="bg-transparent py-1"
+            />
+            <span className="text-[var(--color-muted)]">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              aria-label="To date"
+              className="bg-transparent py-1"
+            />
+          </div>
+          {hasActiveFilters && (
             <button
               type="button"
-              onClick={() => setFilterDate("")}
+              onClick={clearFilters}
               className="text-sm text-[var(--color-muted)] hover:underline"
             >
-              Clear date filter
+              Clear filters
             </button>
           )}
           <button
