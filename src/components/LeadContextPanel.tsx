@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { logNote } from "@/lib/activity";
-import { changeLeadStatus } from "@/lib/leadStatus";
+import { useLeadStatusChange } from "@/components/CloseReasonDialog";
 import {
   buildLeadUpdate,
   leadToEditForm,
@@ -144,12 +144,17 @@ export default function LeadContextPanel({
     });
   }
 
-  async function handleStatus(next: LeadStatus) {
+  // Ganti status lewat helper bersama — Won/Lost minta alasan dulu.
+  const { requestStatusChange, dialog: closeReasonDialog } =
+    useLeadStatusChange(() => {
+      onChanged();
+      if (lead) loadActivities(lead.id);
+    }, setError);
+
+  function handleStatus(next: LeadStatus) {
     if (!lead) return;
     setError(null);
-    await changeLeadStatus(lead.id, lead.status, next);
-    onChanged();
-    loadActivities(lead.id);
+    requestStatusChange([lead], next);
   }
 
   async function handleSaveEdit() {
@@ -449,7 +454,9 @@ export default function LeadContextPanel({
                     {a.type === "status_change"
                       ? `${
                           a.old_status ? leadStatusLabel(a.old_status) : "-"
-                        } → ${a.new_status ? leadStatusLabel(a.new_status) : "-"}`
+                        } → ${a.new_status ? leadStatusLabel(a.new_status) : "-"}${
+                          a.content ? ` (${a.content})` : ""
+                        }`
                       : a.type === "whatsapp_message"
                         ? `WhatsApp: ${a.content}`
                         : a.content}
@@ -460,6 +467,7 @@ export default function LeadContextPanel({
           </>
         )
       )}
+      {closeReasonDialog}
     </aside>
   );
 }

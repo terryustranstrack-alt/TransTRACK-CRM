@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { groupDuplicates } from "@/lib/duplicates";
+import SourceReport from "@/components/SourceReport";
 import { LEAD_STATUSES, leadStatusLabel, type Lead } from "@/lib/types";
 
 const supabase = createClient();
@@ -97,6 +98,7 @@ export default function Dashboard({
     const duplicateGroups = groupDuplicates(leadsInBrand);
 
     return {
+      leadsInBrand,
       totalLeads,
       perStatus,
       conversionRate,
@@ -206,6 +208,8 @@ export default function Dashboard({
           ))}
         </div>
       </div>
+
+      <SourceReport leads={stats.leadsInBrand} />
 
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
         <h2 className="font-medium mb-1">Needs follow-up</h2>

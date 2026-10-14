@@ -69,6 +69,9 @@ export type Lead = {
   created_by_bot: boolean; // true kalau lead dibuat otomatis oleh chatbot
   next_step: string | null; // langkah follow-up berikutnya (teks bebas)
   next_step_due: string | null; // tanggal jatuh tempo langkah itu ("YYYY-MM-DD")
+  close_reason: string | null; // alasan Won/Lost (lihat src/lib/closeReasons.ts)
+  close_note: string | null; // catatan tambahan tentang alasan itu
+  closed_at: string | null; // kapan lead ditandai Won/Lost
   brand_id: string | null; // brand pemilik lead ini (pool "belum diklaim")
   assigned_to: string | null; // id sales yang menangani (profiles.id)
   created_by: string | null;

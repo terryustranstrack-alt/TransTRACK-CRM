@@ -7,12 +7,15 @@ type SupabaseBrowserClient = ReturnType<typeof createClient>;
 // Catat satu baris riwayat di tabel `lead_activities` setiap kali status
 // sebuah lead berubah (mis. "Baru" -> "Dihubungi"). Dipakai di
 // LeadDetail/LeadBoard/ProspekTable setiap kali user ganti dropdown status.
+// `content` opsional — diisi alasan Won/Lost (mis. "Reason: Price — terlalu
+// mahal") supaya alasannya ikut terlihat di riwayat.
 // Return: pesan error kalau gagal simpan, atau null kalau berhasil.
 export async function logStatusChange(
   supabase: SupabaseBrowserClient,
   leadId: string,
   oldStatus: LeadStatus,
   newStatus: LeadStatus,
+  content?: string,
 ): Promise<string | null> {
   const {
     data: { user },
@@ -23,6 +26,7 @@ export async function logStatusChange(
     type: "status_change",
     old_status: oldStatus,
     new_status: newStatus,
+    content: content ?? null,
     created_by: user?.id ?? null,
   });
 

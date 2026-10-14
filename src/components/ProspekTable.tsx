@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { logNote, logStatusChange } from "@/lib/activity";
+import { logNote } from "@/lib/activity";
 import { useSumberOptions } from "@/lib/useSumberOptions";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
@@ -23,6 +23,8 @@ import {
   type NewLeadInput,
 } from "@/lib/csv";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
+import { useLeadStatusChange } from "@/components/CloseReasonDialog";
+import { useSavedFilters, type ProspectFilters } from "@/lib/useSavedFilters";
 import { groupDuplicates, sameContact } from "@/lib/duplicates";
 import {
   matchesDateRange,
@@ -39,6 +41,10 @@ import {
 } from "@/lib/types";
 
 const supabase = createClient();
+
+// Nilai khusus di dropdown "Assign to…" (aksi massal) untuk melepas
+// penanggung jawab — dropdown tidak bisa pakai null sebagai value.
+const UNASSIGN = "__unassigned__";
 
 // Nilai awal form edit sebelum ada baris yang dipilih. Bentuknya sama dengan
 // LeadEditForm (dipakai bareng LeadDetail lewat src/lib/leadEdit.ts).
@@ -159,6 +165,15 @@ export default function ProspekTable() {
   const sumberOptions = useSumberOptions();
   const profiles = useProfiles();
   const { profile: currentProfile } = useCurrentProfile();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const {
+    savedFilters,
+    save: saveFilter,
+    remove: removeFilter,
+  } = useSavedFilters();
+  const [activeViewId, setActiveViewId] = useState("");
+  const [savingView, setSavingView] = useState(false);
+  const [newViewName, setNewViewName] = useState("");
 
   async function loadLeads() {
     const { data, error } = await supabase
@@ -225,14 +240,119 @@ export default function ProspekTable() {
     dateTo !== "" ||
     brandFilter !== "all";
 
+  // Isi semua filter sekaligus — dipakai saat membuka saved view.
+  function applyFilters(f: ProspectFilters) {
+    setSearch(f.search);
+    setSourceFilter(f.sourceFilter);
+    setFollowUpOnly(f.followUpOnly);
+    setDateField(f.dateField);
+    setDateFrom(f.dateFrom);
+    setDateTo(f.dateTo);
+    setBrandFilter(f.brandFilter);
+  }
+
   // Kembalikan semua filter ke kondisi awal (tampilkan semua lead).
   function clearFilters() {
-    setSearch("");
-    setSourceFilter("all");
-    setFollowUpOnly(false);
-    setDateFrom("");
-    setDateTo("");
-    setBrandFilter("all");
+    applyFilters({
+      search: "",
+      sourceFilter: "all",
+      followUpOnly: false,
+      dateField: "tanggal_masuk",
+      dateFrom: "",
+      dateTo: "",
+      brandFilter: "all",
+    });
+    setActiveViewId("");
+  }
+
+  // Buka saved view yang dipilih dari dropdown "Saved views".
+  function handleOpenView(id: string) {
+    setActiveViewId(id);
+    const view = savedFilters.find((v) => v.id === id);
+    if (view) applyFilters(view.filters);
+  }
+
+  // Simpan kombinasi filter yang sedang aktif dengan nama yang diketik user.
+  async function handleSaveView(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newViewName.trim();
+    if (!name) return;
+    const saveError = await saveFilter(name, {
+      search,
+      sourceFilter,
+      followUpOnly,
+      dateField,
+      dateFrom,
+      dateTo,
+      brandFilter,
+    });
+    if (saveError) {
+      setError(saveError);
+      return;
+    }
+    setNewViewName("");
+    setSavingView(false);
+  }
+
+  async function handleDeleteView() {
+    if (!activeViewId) return;
+    const deleteError = await removeFilter(activeViewId);
+    if (deleteError) setError(deleteError);
+    else setActiveViewId("");
+  }
+
+  // Lead yang dicentang DAN masih terlihat dengan filter sekarang — aksi
+  // massal hanya berlaku untuk ini, supaya tidak ada lead "tersembunyi" yang
+  // ikut berubah tanpa disadari.
+  const selectedLeads = filteredLeads.filter((l) => selectedIds.has(l.id));
+  const allVisibleSelected =
+    filteredLeads.length > 0 && selectedLeads.length === filteredLeads.length;
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible() {
+    setSelectedIds(
+      allVisibleSelected ? new Set() : new Set(filteredLeads.map((l) => l.id)),
+    );
+  }
+
+  // Ganti penanggung jawab banyak lead sekaligus (khusus admin), lalu catat
+  // ke riwayat tiap lead.
+  async function handleBulkAssign(assignedTo: string | null) {
+    const ids = selectedLeads.map((l) => l.id);
+    if (ids.length === 0) return;
+
+    const { error } = await supabase
+      .from("leads")
+      .update({ assigned_to: assignedTo, tanggal_update: new Date().toISOString() })
+      .in("id", ids);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    const assignee = profiles.find((p) => p.id === assignedTo);
+    const label = assignee ? profileLabel(assignee) : "Unassigned";
+    for (const id of ids) {
+      const activityError = await logNote(supabase, id, `Assigned to: ${label}.`);
+      if (activityError) setError(activityError);
+    }
+    setSelectedIds(new Set());
+    loadLeads();
+  }
+
+  // Download CSV berisi `rows` — dipakai untuk "Export CSV" (semua yang
+  // terlihat dengan filter sekarang) dan "Export selected".
+  function exportLeads(rows: Lead[]) {
+    const brandNames = Object.fromEntries(brands.map((b) => [b.id, b.name]));
+    downloadCsv(`leads-${Date.now()}.csv`, leadsToCsv(rows, brandNames));
   }
 
   // Grup lead yang nomor/email-nya sama — untuk tampilan "Possible duplicates".
@@ -316,26 +436,16 @@ export default function ProspekTable() {
     setEditForm(leadToEditForm(lead));
   }
 
-  async function handleStatusChange(lead: Lead, status: LeadStatus) {
-    if (status === lead.status) return;
+  // Ganti status (satu baris ATAU banyak lead yang dicentang) lewat helper
+  // bersama — Won/Lost minta alasan dulu. Setelah selesai, centang dikosongkan.
+  const { requestStatusChange, dialog: closeReasonDialog } =
+    useLeadStatusChange(() => {
+      setSelectedIds(new Set());
+      loadLeads();
+    }, setError);
 
-    const { error } = await supabase
-      .from("leads")
-      .update({ status, tanggal_update: new Date().toISOString() })
-      .eq("id", lead.id);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    const activityError = await logStatusChange(
-      supabase,
-      lead.id,
-      lead.status,
-      status,
-    );
-    if (activityError) setError(activityError);
-    loadLeads();
+  function handleStatusChange(lead: Lead, status: LeadStatus) {
+    requestStatusChange([lead], status);
   }
 
   // Simpan perubahan dari form edit baris ini. Payload update + daftar field
@@ -474,20 +584,71 @@ export default function ProspekTable() {
               Clear filters
             </button>
           )}
+          <div className="flex items-center gap-2">
+            <select
+              value={activeViewId}
+              onChange={(e) => handleOpenView(e.target.value)}
+              aria-label="Saved views"
+              className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">Saved views</option>
+              {savedFilters.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+            {activeViewId ? (
+              <button
+                type="button"
+                onClick={handleDeleteView}
+                className="text-sm text-[var(--color-muted)] hover:underline"
+              >
+                Delete view
+              </button>
+            ) : savingView ? (
+              <form onSubmit={handleSaveView} className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={newViewName}
+                  onChange={(e) => setNewViewName(e.target.value)}
+                  placeholder="View name"
+                  className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm w-36"
+                />
+                <button
+                  type="submit"
+                  disabled={!newViewName.trim()}
+                  className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-3 py-2 text-sm transition-colors disabled:opacity-50"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSavingView(false)}
+                  className="text-sm text-[var(--color-muted)] hover:underline"
+                >
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => setSavingView(true)}
+                  className="text-sm text-[var(--color-muted)] hover:underline"
+                >
+                  Save view
+                </button>
+              )
+            )}
+          </div>
           <button
             type="button"
-            onClick={() => {
-              const brandNames = Object.fromEntries(
-                brands.map((b) => [b.id, b.name]),
-              );
-              downloadCsv(
-                `leads-${Date.now()}.csv`,
-                leadsToCsv(leads, brandNames),
-              );
-            }}
+            onClick={() => exportLeads(filteredLeads)}
+            title="Exports the prospects currently shown (filters applied)"
             className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)]"
           >
-            Export CSV
+            Export CSV ({filteredLeads.length})
           </button>
           <input
             ref={fileInputRef}
@@ -524,6 +685,66 @@ export default function ProspekTable() {
         <p className="text-sm text-[var(--color-muted)]">{importMessage}</p>
       )}
 
+      {!showDuplicates && selectedLeads.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-muted-bg)] px-4 py-2 text-sm">
+          <span className="font-medium">{selectedLeads.length} selected</span>
+          <select
+            value=""
+            onChange={(e) =>
+              requestStatusChange(selectedLeads, e.target.value as LeadStatus)
+            }
+            aria-label="Change status of selected"
+            className="border border-[var(--color-border)] rounded-lg px-2 py-1 bg-[var(--color-surface)]"
+          >
+            <option value="" disabled>
+              Change status…
+            </option>
+            {LEAD_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {leadStatusLabel(s)}
+              </option>
+            ))}
+          </select>
+          {currentProfile?.is_admin && (
+            <select
+              value=""
+              onChange={(e) =>
+                handleBulkAssign(
+                  e.target.value === UNASSIGN ? null : e.target.value,
+                )
+              }
+              aria-label="Assign selected to"
+              className="border border-[var(--color-border)] rounded-lg px-2 py-1 bg-[var(--color-surface)]"
+            >
+              <option value="" disabled>
+                Assign to…
+              </option>
+              <option value={UNASSIGN}>Unassigned</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {profileLabel(p)}
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            type="button"
+            onClick={() => exportLeads(selectedLeads)}
+            className="border border-[var(--color-border)] rounded-lg px-3 py-1 bg-[var(--color-surface)] hover:bg-[var(--color-muted-bg)]"
+          >
+            Export selected
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-[var(--color-muted)] hover:underline"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+      {closeReasonDialog}
+
       {showDuplicates ? (
         <DuplicatesPanel
           groups={duplicateGroups}
@@ -535,6 +756,14 @@ export default function ProspekTable() {
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-[var(--color-muted-bg)] border-b border-[var(--color-border)] text-left">
+              <th className="p-2 w-8">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAllVisible}
+                  aria-label="Select all shown prospects"
+                />
+              </th>
               <th className="p-2">Name</th>
               <th className="p-2">Contact</th>
               <th className="p-2">Source</th>
@@ -552,7 +781,7 @@ export default function ProspekTable() {
           <tbody>
             {filteredLeads.length === 0 && (
               <tr>
-                <td colSpan={12} className="p-4 text-center text-[var(--color-muted)]">
+                <td colSpan={13} className="p-4 text-center text-[var(--color-muted)]">
                   No matching prospects.
                 </td>
               </tr>
@@ -561,6 +790,14 @@ export default function ProspekTable() {
               const isEditing = editingId === lead.id;
               return (
                 <tr key={lead.id} className="border-b align-top">
+                  <td className="p-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(lead.id)}
+                      onChange={() => toggleSelected(lead.id)}
+                      aria-label={`Select ${lead.nama}`}
+                    />
+                  </td>
                   {isEditing ? (
                     <>
                       <td className="p-2">

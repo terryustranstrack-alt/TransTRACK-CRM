@@ -26,6 +26,9 @@ const KOLOM: {
   { header: "Email", value: (lead) => lead.email ?? "" },
   { header: "City", value: (lead) => lead.kota ?? "" },
   { header: "Status", value: (lead) => leadStatusLabel(lead.status) },
+  // Alasan Won/Lost (0021) — hanya untuk dibaca/dianalisis, tidak diimpor balik.
+  { header: "Close Reason", value: (lead) => lead.close_reason ?? "" },
+  { header: "Close Note", value: (lead) => lead.close_note ?? "" },
   { header: "Product", value: (lead) => lead.produk ?? "" },
   {
     header: "Estimated Value",

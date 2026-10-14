@@ -12,7 +12,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { createClient } from "@/lib/supabase/client";
-import { logStatusChange } from "@/lib/activity";
+import { useLeadStatusChange } from "@/components/CloseReasonDialog";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
@@ -196,29 +196,14 @@ export default function LeadBoard() {
     loadLeads();
   }, []);
 
-  async function handleStatusChange(leadId: string, status: LeadStatus) {
-    const oldStatus = leads.find((l) => l.id === leadId)?.status;
-    if (oldStatus === status) return;
+  // Ganti status lewat helper bersama — kalau tujuannya Won/Lost, dialog
+  // alasan muncul dulu (kartu tetap di kolom lama kalau dibatalkan).
+  const { requestStatusChange, dialog: closeReasonDialog } =
+    useLeadStatusChange(loadLeads, setError);
 
-    const { error } = await supabase
-      .from("leads")
-      .update({ status, tanggal_update: new Date().toISOString() })
-      .eq("id", leadId);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    if (oldStatus) {
-      const activityError = await logStatusChange(
-        supabase,
-        leadId,
-        oldStatus,
-        status,
-      );
-      if (activityError) setError(activityError);
-    }
-    loadLeads();
+  function handleStatusChange(leadId: string, status: LeadStatus) {
+    const lead = leads.find((l) => l.id === leadId);
+    if (lead) requestStatusChange([lead], status);
   }
 
   // Dipanggil dnd-kit saat drag selesai. `active` = kartu lead yang
@@ -344,6 +329,7 @@ export default function LeadBoard() {
           ))}
         </div>
       </DndContext>
+      {closeReasonDialog}
     </div>
   );
 }

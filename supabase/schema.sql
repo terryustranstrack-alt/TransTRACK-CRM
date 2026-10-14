@@ -28,7 +28,12 @@ create table if not exists leads (
   -- Ditambah di 0020_lead_next_step.sql — disiplin follow-up:
   -- next_step = teks langkah berikutnya, next_step_due = tanggal jatuh temponya.
   next_step text,
-  next_step_due date
+  next_step_due date,
+  -- Ditambah di 0021_close_reason.sql — hasil akhir lead: alasan menang/kalah,
+  -- catatan tambahan, dan kapan ditandai Won/Lost.
+  close_reason text,
+  close_note text,
+  closed_at timestamptz
 );
 
 -- Aktifkan Row Level Security supaya akses dibatasi lewat policy di bawah,
@@ -505,3 +510,21 @@ create index if not exists conversations_external_contact_trgm
 
 alter publication supabase_realtime add table conversations;
 alter publication supabase_realtime add table messages;
+
+-- 0022: "Saved views" pribadi di halaman Prospects.
+create table if not exists saved_filters (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references profiles(id) on delete cascade,
+  name text not null,
+  filters jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table saved_filters enable row level security;
+
+drop policy if exists "manage own saved filters" on saved_filters;
+create policy "manage own saved filters"
+  on saved_filters for all
+  to authenticated
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());

@@ -4,7 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { logNote, logStatusChange } from "@/lib/activity";
+import { logNote } from "@/lib/activity";
+import { useLeadStatusChange } from "@/components/CloseReasonDialog";
 import {
   buildLeadUpdate,
   leadToEditForm,
@@ -109,33 +110,17 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadId]);
 
-  // Ganti status lead (dropdown di halaman) — update datanya lalu catat
-  // perubahan ke riwayat aktivitas supaya bisa dilihat kapan/oleh apa
-  // statusnya berubah.
-  async function handleStatusChange(status: LeadStatus) {
-    if (!lead) return;
-    const oldStatus = lead.status;
+  // Ganti status lead (dropdown di halaman) lewat helper bersama: kalau
+  // tujuannya Won/Lost, dialog alasan muncul dulu. Setelah tersimpan, data
+  // lead + riwayat aktivitas dimuat ulang.
+  const { requestStatusChange, dialog: closeReasonDialog } =
+    useLeadStatusChange(() => {
+      loadLead();
+      loadActivities();
+    }, setError);
 
-    const { error } = await supabase
-      .from("leads")
-      .update({ status, tanggal_update: new Date().toISOString() })
-      .eq("id", leadId);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    if (oldStatus !== status) {
-      const activityError = await logStatusChange(
-        supabase,
-        leadId,
-        oldStatus,
-        status,
-      );
-      if (activityError) setError(activityError);
-    }
-    loadLead();
-    loadActivities();
+  function handleStatusChange(status: LeadStatus) {
+    if (lead) requestStatusChange([lead], status);
   }
 
   // Tambah catatan bebas ke riwayat aktivitas (form "Add Note").
@@ -609,8 +594,23 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
               ))}
             </select>
           </dd>
+
+          {lead.close_reason && (
+            <>
+              <dt className="text-[var(--color-muted)]">
+                {lead.status === "Hilang" ? "Lost reason" : "Won reason"}
+              </dt>
+              <dd>
+                {lead.close_reason}
+                {lead.close_note && (
+                  <span className="text-[var(--color-muted)]"> — {lead.close_note}</span>
+                )}
+              </dd>
+            </>
+          )}
         </dl>
       )}
+      {closeReasonDialog}
 
       {!isEditing && lead.catatan && (
         <div>
@@ -662,6 +662,11 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
                   <span className="font-medium">
                     {activity.new_status ? leadStatusLabel(activity.new_status) : "-"}
                   </span>
+                  {activity.content && (
+                    <span className="block text-[var(--color-muted)]">
+                      {activity.content}
+                    </span>
+                  )}
                 </p>
               ) : activity.type === "whatsapp_message" ? (
                 <p className="whitespace-pre-wrap">
