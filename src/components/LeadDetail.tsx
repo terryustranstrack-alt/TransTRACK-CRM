@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { logNote } from "@/lib/activity";
 import { useLeadStatusChange } from "@/components/CloseReasonDialog";
+import LeadTimeline from "@/components/LeadTimeline";
 import {
   buildLeadUpdate,
   leadToEditForm,
@@ -622,7 +623,7 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
       )}
 
       <div>
-        <h2 className="font-medium mb-2">Activity history</h2>
+        <h2 className="font-medium mb-2">Timeline</h2>
         <form onSubmit={handleAddCatatan} className="flex flex-col gap-2 mb-4">
           <textarea
             value={catatanBaru}
@@ -640,45 +641,12 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
           </button>
         </form>
 
-        <ul className="flex flex-col gap-3">
-          {activities.length === 0 && (
-            <li className="text-sm text-[var(--color-muted)]">No activity yet.</li>
-          )}
-          {activities.map((activity) => (
-            <li
-              key={activity.id}
-              className="border border-[var(--color-border)] rounded-lg p-3 text-sm bg-[var(--color-surface)]"
-            >
-              <p className="text-xs text-[var(--color-muted)] mb-1">
-                {new Date(activity.created_at).toLocaleString("id-ID")}
-              </p>
-              {activity.type === "status_change" ? (
-                <p>
-                  Status changed from{" "}
-                  <span className="font-medium">
-                    {activity.old_status ? leadStatusLabel(activity.old_status) : "-"}
-                  </span>{" "}
-                  to{" "}
-                  <span className="font-medium">
-                    {activity.new_status ? leadStatusLabel(activity.new_status) : "-"}
-                  </span>
-                  {activity.content && (
-                    <span className="block text-[var(--color-muted)]">
-                      {activity.content}
-                    </span>
-                  )}
-                </p>
-              ) : activity.type === "whatsapp_message" ? (
-                <p className="whitespace-pre-wrap">
-                  <span className="text-[var(--color-success)] font-medium">WhatsApp: </span>
-                  {activity.content}
-                </p>
-              ) : (
-                <p className="whitespace-pre-wrap">{activity.content}</p>
-              )}
-            </li>
-          ))}
-        </ul>
+        <LeadTimeline
+          leadId={leadId}
+          leadName={lead.nama}
+          activities={activities}
+          profiles={profiles}
+        />
       </div>
     </main>
   );
