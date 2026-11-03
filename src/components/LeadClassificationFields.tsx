@@ -15,9 +15,11 @@ export type LeadClassificationValues = {
   custom_fields: Record<string, string>;
 };
 
-// Field "Business", "Product", dan semua field tambahan buatan admin —
-// dipakai bareng oleh form tambah lead, halaman detail lead, dan panel lead
-// di Inbox. Tiap form punya gaya label sendiri, jadi bungkusnya diserahkan
+// Field "Product" dan semua field tambahan buatan admin — dipakai bareng
+// oleh form tambah lead, halaman detail lead, dan panel lead di Inbox.
+// Pilihannya mengikuti business yang dipilih (values.business_unit_id).
+// Business sendiri dipilih lewat BusinessPicker yang ditaruh paling atas
+// tiap form. Tiap form punya gaya label sendiri, jadi bungkusnya diserahkan
 // ke pemanggil lewat renderField.
 export default function LeadClassificationFields({
   values,
@@ -32,26 +34,12 @@ export default function LeadClassificationFields({
   inputClassName: string;
   idPrefix?: string;
 }) {
-  const { businessUnits, products, customFields } = useLeadFieldSettings();
+  const { products, customFields } = useLeadFieldSettings();
   const productOptions = productsForBusiness(products, values.business_unit_id);
   const visibleCustomFields = customFieldsForBusiness(
     customFields,
     values.business_unit_id,
   );
-
-  // Ganti business: kalau produk yang sedang dipilih adalah produk milik
-  // business lain, kosongkan — supaya tidak tersimpan produk Academy di
-  // lead TransTRACK (atau sebaliknya). Produk umum / ketikan bebas dibiarkan.
-  function handleBusinessChange(businessUnitId: string) {
-    const stillValid =
-      !values.produk ||
-      productsForBusiness(products, businessUnitId).includes(values.produk) ||
-      !products.some((p) => p.name === values.produk);
-    onChange({
-      business_unit_id: businessUnitId,
-      produk: stillValid ? values.produk : "",
-    });
-  }
 
   function setCustomValue(fieldId: string, value: string) {
     onChange({ custom_fields: { ...values.custom_fields, [fieldId]: value } });
@@ -59,25 +47,6 @@ export default function LeadClassificationFields({
 
   return (
     <>
-      {businessUnits.length > 0 &&
-        renderField(
-          "Business",
-          `${idPrefix}business_unit_id`,
-          <select
-            id={`${idPrefix}business_unit_id`}
-            value={values.business_unit_id}
-            onChange={(e) => handleBusinessChange(e.target.value)}
-            className={inputClassName}
-          >
-            <option value="">- Select business -</option>
-            {businessUnits.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>,
-        )}
-
       {renderField(
         "Product/need of interest",
         `${idPrefix}produk`,

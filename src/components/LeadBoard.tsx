@@ -17,6 +17,9 @@ import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import { useBrands } from "@/lib/useBrands";
+import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
+import { BUSINESS_TONE_CLASSES, businessTone } from "@/lib/businessStyle";
+import BusinessBadge from "@/components/BusinessBadge";
 import {
   LEAD_STATUSES,
   leadStatusLabel,
@@ -30,13 +33,17 @@ const SEMUA_SUMBER = "All sources";
 const SEMUA_ASSIGNEE = "All assignees";
 
 // Satu kartu lead di dalam kolom Kanban — bisa di-drag ke kolom status lain.
+// Garis kiri berwarna + label di atas menandai business-nya (TransTRACK
+// merah, Academy biru) supaya bisa dibedakan sekilas tanpa membuka kartu.
 function LeadCard({
   lead,
   profiles,
+  businessName,
   onStatusChange,
 }: {
   lead: Lead;
   profiles: Profile[];
+  businessName: string | undefined;
   onStatusChange: (leadId: string, status: LeadStatus) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -63,13 +70,18 @@ function LeadCard({
       style={style}
       className={`border border-[var(--color-border)] rounded-lg p-3 bg-[var(--color-surface)] shadow-sm ${
         isDragging ? "opacity-50" : ""
-      } ${overdue ? "border-[var(--color-warning)] border-2" : ""}`}
+      } ${overdue ? "border-[var(--color-warning)] border-2" : ""} ${
+        businessName ? BUSINESS_TONE_CLASSES[businessTone(businessName)].stripe : ""
+      }`}
     >
       <div
         {...listeners}
         {...attributes}
         className="cursor-grab active:cursor-grabbing"
       >
+        <div className="mb-1.5">
+          <BusinessBadge name={businessName} />
+        </div>
         <Link
           href={`/leads/${lead.id}`}
           className="font-medium hover:underline"
@@ -129,11 +141,13 @@ function LeadColumn({
   status,
   leads,
   profiles,
+  businessNameById,
   onStatusChange,
 }: {
   status: LeadStatus;
   leads: Lead[];
   profiles: Profile[];
+  businessNameById: Map<string, string>;
   onStatusChange: (leadId: string, status: LeadStatus) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
@@ -152,6 +166,7 @@ function LeadColumn({
             key={lead.id}
             lead={lead}
             profiles={profiles}
+            businessName={businessNameById.get(lead.business_unit_id ?? "")}
             onStatusChange={onStatusChange}
           />
         ))}
@@ -175,6 +190,11 @@ export default function LeadBoard() {
   const profiles = useProfiles();
   const brands = useBrands();
   const { profile: currentProfile } = useCurrentProfile();
+  const { businessUnits } = useLeadFieldSettings();
+  const businessNameById = useMemo(
+    () => new Map(businessUnits.map((b) => [b.id, b.name])),
+    [businessUnits],
+  );
 
   async function loadLeads() {
     const { data, error } = await supabase
@@ -324,6 +344,7 @@ export default function LeadBoard() {
               status={status}
               leads={filteredLeads.filter((lead) => lead.status === status)}
               profiles={profiles}
+              businessNameById={businessNameById}
               onStatusChange={handleStatusChange}
             />
           ))}

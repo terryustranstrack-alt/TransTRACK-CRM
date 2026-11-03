@@ -21,6 +21,7 @@ import { linkConversationToLead } from "@/app/inbox/actions";
 import { useSumberOptions } from "@/lib/useSumberOptions";
 import SumberSelect from "@/components/SumberSelect";
 import LeadClassificationFields from "@/components/LeadClassificationFields";
+import BusinessPicker from "@/components/BusinessPicker";
 import AssigneeSelect from "@/components/AssigneeSelect";
 import CurrencyInput from "@/components/CurrencyInput";
 import LeadForm from "@/components/LeadForm";
@@ -300,6 +301,20 @@ export default function LeadContextPanel({
               >
                 Change
               </button>
+            </div>
+
+            {/* Business paling atas & berwarna supaya langsung kelihatan
+                chat ini untuk TransTRACK (merah) atau Academy (biru). */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-[var(--color-muted)]">Business</span>
+              <BusinessPicker
+                value={editForm.business_unit_id}
+                produk={editForm.produk}
+                size="sm"
+                onChange={(patch) =>
+                  setEditForm((f) => (f ? { ...f, ...patch } : f))
+                }
+              />
             </div>
 
             <Field label="Status">

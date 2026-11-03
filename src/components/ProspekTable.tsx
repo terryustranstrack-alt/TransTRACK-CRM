@@ -21,6 +21,9 @@ import {
   productsForBusiness,
   useLeadFieldSettings,
 } from "@/lib/useLeadFieldSettings";
+import { BUSINESS_TONE_CLASSES, businessTone } from "@/lib/businessStyle";
+import BusinessBadge from "@/components/BusinessBadge";
+import BusinessPicker from "@/components/BusinessPicker";
 import {
   downloadCsv,
   leadsToCsv,
@@ -766,12 +769,12 @@ export default function ProspekTable() {
                   aria-label="Select all shown prospects"
                 />
               </th>
+              <th className="p-2">Business</th>
               <th className="p-2">Name</th>
               <th className="p-2">Contact</th>
               <th className="p-2">Source</th>
               <th className="p-2">Company</th>
               <th className="p-2">City</th>
-              <th className="p-2">Business</th>
               <th className="p-2">Product</th>
               <th className="p-2">Estimated Value</th>
               <th className="p-2">Next Step</th>
@@ -791,9 +794,17 @@ export default function ProspekTable() {
             )}
             {filteredLeads.map((lead) => {
               const isEditing = editingId === lead.id;
+              const businessName = businessNameById.get(lead.business_unit_id ?? "");
               return (
                 <tr key={lead.id} className="border-b align-top">
-                  <td className="p-2">
+                  {/* Garis kiri berwarna = business lead ini (merah/biru). */}
+                  <td
+                    className={`p-2 ${
+                      businessName
+                        ? BUSINESS_TONE_CLASSES[businessTone(businessName)].stripe
+                        : ""
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       checked={selectedIds.has(lead.id)}
@@ -803,6 +814,16 @@ export default function ProspekTable() {
                   </td>
                   {isEditing ? (
                     <>
+                      <td className="p-2 min-w-44">
+                        <BusinessPicker
+                          value={editForm.business_unit_id}
+                          produk={editForm.produk}
+                          size="sm"
+                          onChange={(patch) =>
+                            setEditForm((f) => ({ ...f, ...patch }))
+                          }
+                        />
+                      </td>
                       <td className="p-2">
                         <input
                           value={editForm.nama}
@@ -853,25 +874,6 @@ export default function ProspekTable() {
                           }
                           className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
                         />
-                      </td>
-                      <td className="p-2 min-w-36">
-                        <select
-                          value={editForm.business_unit_id}
-                          onChange={(e) =>
-                            setEditForm({
-                              ...editForm,
-                              business_unit_id: e.target.value,
-                            })
-                          }
-                          className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
-                        >
-                          <option value="">-</option>
-                          {businessUnits.map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.name}
-                            </option>
-                          ))}
-                        </select>
                       </td>
                       <td className="p-2 min-w-40">
                         <SumberSelect
@@ -946,6 +948,9 @@ export default function ProspekTable() {
                   ) : (
                     <>
                       <td className="p-2">
+                        <BusinessBadge name={businessName} />
+                      </td>
+                      <td className="p-2">
                         <Link
                           href={`/leads/${lead.id}`}
                           className="font-medium hover:underline"
@@ -957,10 +962,6 @@ export default function ProspekTable() {
                       <td className="p-2">{lead.sumber || "-"}</td>
                       <td className="p-2">{lead.perusahaan || "-"}</td>
                       <td className="p-2">{lead.kota || "-"}</td>
-                      <td className="p-2">
-                        {businessNameById.get(lead.business_unit_id ?? "") ||
-                          "-"}
-                      </td>
                       <td className="p-2">{lead.produk || "-"}</td>
                       <td className="p-2">
                         {lead.estimasi_nilai != null

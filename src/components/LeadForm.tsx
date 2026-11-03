@@ -12,6 +12,7 @@ import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import { useBrands } from "@/lib/useBrands";
 import SumberSelect from "@/components/SumberSelect";
 import LeadClassificationFields from "@/components/LeadClassificationFields";
+import BusinessPicker from "@/components/BusinessPicker";
 import { cleanCustomFields } from "@/lib/leadEdit";
 import AssigneeSelect from "@/components/AssigneeSelect";
 import CurrencyInput from "@/components/CurrencyInput";
@@ -195,6 +196,17 @@ export default function LeadForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md">
+      {/* Business paling atas & berwarna — hal pertama yang ditentukan
+          untuk tiap lead (TransTRACK merah, Academy biru). */}
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-medium">Business</span>
+        <BusinessPicker
+          value={form.business_unit_id}
+          produk={form.produk}
+          onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+        />
+      </div>
+
       <div className="flex flex-col gap-1">
         <label htmlFor="nama" className="text-sm font-medium">
           Name

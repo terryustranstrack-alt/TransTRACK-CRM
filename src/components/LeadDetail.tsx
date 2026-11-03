@@ -17,6 +17,8 @@ import {
 import { useSumberOptions } from "@/lib/useSumberOptions";
 import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
 import LeadClassificationFields from "@/components/LeadClassificationFields";
+import BusinessPicker from "@/components/BusinessPicker";
+import BusinessBadge from "@/components/BusinessBadge";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import SumberSelect from "@/components/SumberSelect";
@@ -238,6 +240,12 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <BusinessBadge
+              size="md"
+              name={businessUnits.find((b) => b.id === lead.business_unit_id)?.name}
+            />
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">{lead.nama}</h1>
           <p className="text-sm text-[var(--color-muted)]">
             Added: {new Date(lead.tanggal_masuk).toLocaleString("id-ID")} ·
@@ -292,6 +300,15 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
           onSubmit={handleSaveEdit}
           className="flex flex-col gap-4 border border-[var(--color-border)] rounded-xl p-4"
         >
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium">Business</span>
+            <BusinessPicker
+              value={editForm.business_unit_id}
+              produk={editForm.produk}
+              onChange={(patch) => setEditForm((f) => ({ ...f, ...patch }))}
+            />
+          </div>
+
           <div className="flex flex-col gap-1">
             <label htmlFor="edit-nama" className="text-sm font-medium">
               Name
@@ -525,12 +542,6 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
 
           <dt className="text-[var(--color-muted)]">City/region</dt>
           <dd>{lead.kota || "-"}</dd>
-
-          <dt className="text-[var(--color-muted)]">Business</dt>
-          <dd>
-            {businessUnits.find((b) => b.id === lead.business_unit_id)?.name ||
-              "-"}
-          </dd>
 
           <dt className="text-[var(--color-muted)]">Product/need</dt>
           <dd>{lead.produk || "-"}</dd>
