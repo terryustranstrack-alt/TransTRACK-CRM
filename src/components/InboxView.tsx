@@ -669,11 +669,27 @@ export default function InboxView() {
                   >
                     Tmpl
                   </button>
-                  <input
+                  {/* Pakai textarea (bukan input satu baris) supaya baris baru
+                      dari template WhatsApp/Notepad yang di-paste tidak
+                      hilang. Enter = kirim, Shift+Enter = baris baru. */}
+                  <textarea
                     value={draftText}
                     onChange={(e) => setDraftText(e.target.value)}
-                    placeholder="Type a message..."
-                    className="order-first sm:order-none basis-full sm:basis-0 flex-1 min-w-0 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+                    onKeyDown={(e) => {
+                      // Abaikan Enter saat sedang mengetik dengan IME
+                      // (mis. keyboard bahasa Asia) agar tidak terkirim tiba-tiba.
+                      if (
+                        e.key === "Enter" &&
+                        !e.shiftKey &&
+                        !e.nativeEvent.isComposing
+                      ) {
+                        e.preventDefault();
+                        if (!isPending) handleSend();
+                      }
+                    }}
+                    rows={1}
+                    placeholder="Type a message... (Shift+Enter for a new line)"
+                    className="order-first sm:order-none basis-full sm:basis-0 flex-1 min-w-0 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm resize-none [field-sizing:content] max-h-40 overflow-y-auto"
                   />
                   <button
                     type="submit"
