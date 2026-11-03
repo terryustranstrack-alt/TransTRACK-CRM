@@ -7,31 +7,40 @@ import { useState } from "react";
 // asli yang diketik user sendiri.
 const LAINNYA = "__lainnya__";
 
-// Dropdown pilih "Sumber" lead, dengan opsi tambahan untuk mengetik sumber
-// baru yang belum ada di daftar (mis. sumber lead yang jarang dipakai).
+// Dropdown pilih dari daftar, dengan opsi tambahan untuk mengetik nilai
+// baru yang belum ada di daftar. Awalnya khusus "Source", sekarang dipakai
+// juga untuk "Product" (lewat emptyLabel/customPlaceholder).
 export default function SumberSelect({
   value,
   onChange,
   options,
   id,
+  emptyLabel = "- Select source -",
+  customPlaceholder = "Type a new source",
+  className = "border border-[var(--color-border)] rounded-lg px-3 py-2",
 }: {
   value: string;
   onChange: (value: string) => void;
   options: string[];
   id?: string;
+  emptyLabel?: string;
+  customPlaceholder?: string;
+  className?: string;
 }) {
-  // Kalau value awal (dari data lead yang sudah ada) bukan salah satu
-  // opsi standar, langsung tampilkan input custom sejak awal — supaya
-  // sumber "aneh" hasil input manual sebelumnya tidak hilang dari tampilan.
-  const isCustomValue = value !== "" && !options.includes(value);
-  const [showCustomInput, setShowCustomInput] = useState(isCustomValue);
+  // Kotak ketik sendiri tampil kalau user memilih "Other", ATAU kalau nilai
+  // yang tersimpan tidak ada di daftar (mis. nilai lama / hasil chatbot) —
+  // supaya nilai itu tidak hilang dari tampilan. Dihitung ulang tiap render
+  // karena daftar pilihan datang belakangan dari database.
+  const [choseOther, setChoseOther] = useState(false);
+  const showCustomInput =
+    choseOther || (value !== "" && !options.includes(value));
 
   function handleSelectChange(selected: string) {
     if (selected === LAINNYA) {
-      setShowCustomInput(true);
+      setChoseOther(true);
       onChange("");
     } else {
-      setShowCustomInput(false);
+      setChoseOther(false);
       onChange(selected);
     }
   }
@@ -42,9 +51,9 @@ export default function SumberSelect({
         id={id}
         value={showCustomInput ? LAINNYA : value}
         onChange={(e) => handleSelectChange(e.target.value)}
-        className="border border-[var(--color-border)] rounded-lg px-3 py-2"
+        className={className}
       >
-        <option value="">- Select source -</option>
+        <option value="">{emptyLabel}</option>
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
@@ -56,9 +65,9 @@ export default function SumberSelect({
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Type a new source"
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2"
-          autoFocus
+          placeholder={customPlaceholder}
+          className={className}
+          autoFocus={choseOther}
         />
       )}
     </div>

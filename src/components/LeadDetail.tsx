@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -10,10 +10,13 @@ import LeadTimeline from "@/components/LeadTimeline";
 import { notifyLeadsAssigned } from "@/app/push/actions";
 import {
   buildLeadUpdate,
+  EMPTY_LEAD_EDIT_FORM,
   leadToEditForm,
   type LeadEditForm,
 } from "@/lib/leadEdit";
 import { useSumberOptions } from "@/lib/useSumberOptions";
+import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
+import LeadClassificationFields from "@/components/LeadClassificationFields";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import SumberSelect from "@/components/SumberSelect";
@@ -44,23 +47,10 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<LeadEditForm>({
-    nama: "",
-    kontak: "",
-    sumber: "",
-    produk: "",
-    estimasi_nilai: "",
-    kota: "",
-    perusahaan: "",
-    jabatan: "",
-    email: "",
-    catatan: "",
-    next_step: "",
-    next_step_due: "",
-    assigned_to: "",
-  });
+  const [editForm, setEditForm] = useState<LeadEditForm>(EMPTY_LEAD_EDIT_FORM);
   const [saving, setSaving] = useState(false);
   const sumberOptions = useSumberOptions();
+  const { businessUnits, customFields } = useLeadFieldSettings();
   const profiles = useProfiles();
   const { profile: currentProfile } = useCurrentProfile();
   const [hasWaConversation, setHasWaConversation] = useState(false);
@@ -401,19 +391,20 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-produk" className="text-sm font-medium">
-              Product/need
-            </label>
-            <input
-              id="edit-produk"
-              value={editForm.produk}
-              onChange={(e) =>
-                setEditForm({ ...editForm, produk: e.target.value })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+          <LeadClassificationFields
+            values={editForm}
+            onChange={(patch) => setEditForm((f) => ({ ...f, ...patch }))}
+            idPrefix="edit-"
+            inputClassName="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+            renderField={(label, htmlFor, control) => (
+              <div className="flex flex-col gap-1">
+                <label htmlFor={htmlFor} className="text-sm font-medium">
+                  {label}
+                </label>
+                {control}
+              </div>
+            )}
+          />
 
           <div className="flex flex-col gap-1">
             <label
@@ -535,8 +526,25 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
           <dt className="text-[var(--color-muted)]">City/region</dt>
           <dd>{lead.kota || "-"}</dd>
 
+          <dt className="text-[var(--color-muted)]">Business</dt>
+          <dd>
+            {businessUnits.find((b) => b.id === lead.business_unit_id)?.name ||
+              "-"}
+          </dd>
+
           <dt className="text-[var(--color-muted)]">Product/need</dt>
           <dd>{lead.produk || "-"}</dd>
+
+          {/* Field tambahan buatan admin — cuma yang ada isinya, supaya
+              daftar tidak penuh "-" untuk field milik business lain. */}
+          {customFields
+            .filter((f) => lead.custom_fields?.[f.id])
+            .map((f) => (
+              <Fragment key={f.id}>
+                <dt className="text-[var(--color-muted)]">{f.label}</dt>
+                <dd>{lead.custom_fields[f.id]}</dd>
+              </Fragment>
+            ))}
 
           <dt className="text-[var(--color-muted)]">Estimated value</dt>
           <dd>

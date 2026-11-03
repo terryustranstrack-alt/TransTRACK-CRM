@@ -13,9 +13,14 @@ import AssigneeSelect from "@/components/AssigneeSelect";
 import CurrencyInput from "@/components/CurrencyInput";
 import {
   buildLeadUpdate,
+  EMPTY_LEAD_EDIT_FORM,
   leadToEditForm,
   type LeadEditForm,
 } from "@/lib/leadEdit";
+import {
+  productsForBusiness,
+  useLeadFieldSettings,
+} from "@/lib/useLeadFieldSettings";
 import {
   downloadCsv,
   leadsToCsv,
@@ -49,21 +54,7 @@ const UNASSIGN = "__unassigned__";
 
 // Nilai awal form edit sebelum ada baris yang dipilih. Bentuknya sama dengan
 // LeadEditForm (dipakai bareng LeadDetail lewat src/lib/leadEdit.ts).
-const EMPTY_EDIT_FORM: LeadEditForm = {
-  nama: "",
-  kontak: "",
-  sumber: "",
-  produk: "",
-  estimasi_nilai: "",
-  kota: "",
-  perusahaan: "",
-  jabatan: "",
-  email: "",
-  catatan: "",
-  next_step: "",
-  next_step_due: "",
-  assigned_to: "",
-};
+const EMPTY_EDIT_FORM: LeadEditForm = EMPTY_LEAD_EDIT_FORM;
 
 // Tampilan "Possible duplicates": tiap kartu = satu grup lead yang nomor
 // telepon / email-nya sama. Admin dapat tombol untuk membuka layar merge
@@ -164,6 +155,11 @@ export default function ProspekTable() {
   const [showDuplicates, setShowDuplicates] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sumberOptions = useSumberOptions();
+  const { businessUnits, products } = useLeadFieldSettings();
+  const businessNameById = useMemo(
+    () => new Map(businessUnits.map((b) => [b.id, b.name])),
+    [businessUnits],
+  );
   const profiles = useProfiles();
   const { profile: currentProfile } = useCurrentProfile();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -775,6 +771,7 @@ export default function ProspekTable() {
               <th className="p-2">Source</th>
               <th className="p-2">Company</th>
               <th className="p-2">City</th>
+              <th className="p-2">Business</th>
               <th className="p-2">Product</th>
               <th className="p-2">Estimated Value</th>
               <th className="p-2">Next Step</th>
@@ -787,7 +784,7 @@ export default function ProspekTable() {
           <tbody>
             {filteredLeads.length === 0 && (
               <tr>
-                <td colSpan={13} className="p-4 text-center text-[var(--color-muted)]">
+                <td colSpan={14} className="p-4 text-center text-[var(--color-muted)]">
                   No matching prospects.
                 </td>
               </tr>
@@ -857,15 +854,37 @@ export default function ProspekTable() {
                           className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
                         />
                       </td>
-                      <td className="p-2">
-                        <input
-                          value={editForm.produk}
+                      <td className="p-2 min-w-36">
+                        <select
+                          value={editForm.business_unit_id}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
-                              produk: e.target.value,
+                              business_unit_id: e.target.value,
                             })
                           }
+                          className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
+                        >
+                          <option value="">-</option>
+                          {businessUnits.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-2 min-w-40">
+                        <SumberSelect
+                          value={editForm.produk}
+                          onChange={(produk) =>
+                            setEditForm({ ...editForm, produk })
+                          }
+                          options={productsForBusiness(
+                            products,
+                            editForm.business_unit_id,
+                          )}
+                          emptyLabel="-"
+                          customPlaceholder="Type a product or need"
                           className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
                         />
                       </td>
@@ -938,6 +957,10 @@ export default function ProspekTable() {
                       <td className="p-2">{lead.sumber || "-"}</td>
                       <td className="p-2">{lead.perusahaan || "-"}</td>
                       <td className="p-2">{lead.kota || "-"}</td>
+                      <td className="p-2">
+                        {businessNameById.get(lead.business_unit_id ?? "") ||
+                          "-"}
+                      </td>
                       <td className="p-2">{lead.produk || "-"}</td>
                       <td className="p-2">
                         {lead.estimasi_nilai != null

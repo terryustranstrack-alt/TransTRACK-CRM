@@ -7,6 +7,7 @@ import { useTemplates } from "@/lib/useTemplates";
 import { useQuickReplies } from "@/lib/useQuickReplies";
 import { useBrands } from "@/lib/useBrands";
 import ForecastSettings from "@/components/ForecastSettings";
+import LeadFieldSettings from "@/components/LeadFieldSettings";
 import type { BotConfig } from "@/lib/types";
 
 const supabase = createClient();
@@ -368,6 +369,8 @@ export default function SettingsView() {
           </div>
         )}
       </section>
+
+      <LeadFieldSettings />
 
       <ForecastSettings />
     </main>

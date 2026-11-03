@@ -73,8 +73,45 @@ export type Lead = {
   close_note: string | null; // catatan tambahan tentang alasan itu
   closed_at: string | null; // kapan lead ditandai Won/Lost
   brand_id: string | null; // brand pemilik lead ini (pool "belum diklaim")
+  business_unit_id: string | null; // lead ini untuk business mana (TransTRACK / Academy)
+  custom_fields: Record<string, string>; // nilai field tambahan buatan admin, key = lead_custom_fields.id
   assigned_to: string | null; // id sales yang menangani (profiles.id)
   created_by: string | null;
+};
+
+// Satu baris di tabel `business_units` — unit usaha yang menangani lead
+// (mis. TransTRACK vs TransTRACK Academy). Beda dengan Brand (nomor WA).
+export type BusinessUnit = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
+// Pilihan Product di dropdown. business_unit_id null = untuk semua business.
+export type LeadProduct = {
+  id: string;
+  name: string;
+  business_unit_id: string | null;
+  created_at: string;
+};
+
+// Pilihan Source (asal lead) di dropdown.
+export type LeadSource = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
+export type CustomFieldType = "text" | "number" | "date" | "select";
+
+// Field tambahan buatan admin. Nilainya disimpan di leads.custom_fields.
+export type LeadCustomField = {
+  id: string;
+  label: string;
+  field_type: CustomFieldType;
+  options: string[]; // pilihan dropdown, cuma dipakai kalau field_type === "select"
+  business_unit_id: string | null; // null = tampil untuk semua business
+  created_at: string;
 };
 
 export type LeadActivityType = "status_change" | "note" | "whatsapp_message";

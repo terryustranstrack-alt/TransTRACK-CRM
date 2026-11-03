@@ -17,7 +17,48 @@ export type LeadEditForm = {
   next_step: string;
   next_step_due: string; // "YYYY-MM-DD" dari <input type="date">, "" kalau kosong
   assigned_to: string;
+  business_unit_id: string; // "" kalau business belum dipilih
+  custom_fields: Record<string, string>; // nilai field tambahan buatan admin
 };
+
+// Form kosong — titik awal sebelum ada lead yang dibuka.
+export const EMPTY_LEAD_EDIT_FORM: LeadEditForm = {
+  nama: "",
+  kontak: "",
+  sumber: "",
+  produk: "",
+  estimasi_nilai: "",
+  kota: "",
+  perusahaan: "",
+  jabatan: "",
+  email: "",
+  catatan: "",
+  next_step: "",
+  next_step_due: "",
+  assigned_to: "",
+  business_unit_id: "",
+  custom_fields: {},
+};
+
+// Buang nilai field tambahan yang kosong, supaya {"x": ""} dan {} dianggap
+// sama (tidak tercatat sebagai "berubah" padahal user tidak mengisi apa-apa).
+export function cleanCustomFields(
+  values: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(values).filter(([, value]) => value.trim() !== ""),
+  );
+}
+
+function sameCustomFields(
+  a: Record<string, string>,
+  b: Record<string, string>,
+): boolean {
+  const aKeys = Object.keys(a);
+  return (
+    aKeys.length === Object.keys(b).length && aKeys.every((k) => a[k] === b[k])
+  );
+}
 
 // Isi form edit dari data lead yang sedang dibuka.
 export function leadToEditForm(lead: Lead): LeadEditForm {
@@ -36,6 +77,8 @@ export function leadToEditForm(lead: Lead): LeadEditForm {
     next_step: lead.next_step ?? "",
     next_step_due: lead.next_step_due ? lead.next_step_due.slice(0, 10) : "",
     assigned_to: lead.assigned_to ?? "",
+    business_unit_id: lead.business_unit_id ?? "",
+    custom_fields: { ...(lead.custom_fields ?? {}) },
   };
 }
 
@@ -61,6 +104,8 @@ export function buildLeadUpdate(
   const nextStepBaru = form.next_step.trim() || null;
   const nextStepDueBaru = form.next_step_due || null;
   const assignedToBaru = isAdmin ? form.assigned_to || null : lead.assigned_to;
+  const businessBaru = form.business_unit_id || null;
+  const customFieldsBaru = cleanCustomFields(form.custom_fields);
 
   const changedLabels: string[] = [];
   if (form.nama !== lead.nama) changedLabels.push("name");
@@ -87,6 +132,10 @@ export function buildLeadUpdate(
   if (isAdmin && assignedToBaru !== lead.assigned_to) {
     changedLabels.push("assignee");
   }
+  if (businessBaru !== lead.business_unit_id) changedLabels.push("business");
+  if (!sameCustomFields(customFieldsBaru, cleanCustomFields(lead.custom_fields ?? {}))) {
+    changedLabels.push("custom fields");
+  }
 
   return {
     update: {
@@ -103,6 +152,8 @@ export function buildLeadUpdate(
       next_step: nextStepBaru,
       next_step_due: nextStepDueBaru,
       assigned_to: assignedToBaru,
+      business_unit_id: businessBaru,
+      custom_fields: customFieldsBaru,
       tanggal_update: new Date().toISOString(),
     },
     changedLabels,

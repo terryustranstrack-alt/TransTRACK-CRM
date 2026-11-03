@@ -11,6 +11,8 @@ import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import { useBrands } from "@/lib/useBrands";
 import SumberSelect from "@/components/SumberSelect";
+import LeadClassificationFields from "@/components/LeadClassificationFields";
+import { cleanCustomFields } from "@/lib/leadEdit";
 import AssigneeSelect from "@/components/AssigneeSelect";
 import CurrencyInput from "@/components/CurrencyInput";
 import { notifyLeadsAssigned } from "@/app/push/actions";
@@ -32,6 +34,8 @@ const EMPTY_FORM = {
   next_step_due: "",
   assigned_to: "",
   brand_id: "",
+  business_unit_id: "",
+  custom_fields: {} as Record<string, string>,
 };
 
 type LeadFormValues = typeof EMPTY_FORM;
@@ -159,6 +163,8 @@ export default function LeadForm({
         brand_id: currentProfile?.is_admin
           ? form.brand_id || null
           : (currentProfile?.brand_id ?? null),
+        business_unit_id: form.business_unit_id || null,
+        custom_fields: cleanCustomFields(form.custom_fields),
       })
       .select("id")
       .single();
@@ -284,17 +290,19 @@ export default function LeadForm({
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="produk" className="text-sm font-medium">
-          Product/need of interest
-        </label>
-        <input
-          id="produk"
-          value={form.produk}
-          onChange={(e) => setForm({ ...form, produk: e.target.value })}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-        />
-      </div>
+      <LeadClassificationFields
+        values={form}
+        onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+        inputClassName="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+        renderField={(label, htmlFor, control) => (
+          <div className="flex flex-col gap-1">
+            <label htmlFor={htmlFor} className="text-sm font-medium">
+              {label}
+            </label>
+            {control}
+          </div>
+        )}
+      />
 
       <div className="flex flex-col gap-1">
         <label htmlFor="estimasi_nilai" className="text-sm font-medium">

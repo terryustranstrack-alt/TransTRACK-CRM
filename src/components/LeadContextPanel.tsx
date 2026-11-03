@@ -20,6 +20,7 @@ import {
 import { linkConversationToLead } from "@/app/inbox/actions";
 import { useSumberOptions } from "@/lib/useSumberOptions";
 import SumberSelect from "@/components/SumberSelect";
+import LeadClassificationFields from "@/components/LeadClassificationFields";
 import AssigneeSelect from "@/components/AssigneeSelect";
 import CurrencyInput from "@/components/CurrencyInput";
 import LeadForm from "@/components/LeadForm";
@@ -376,15 +377,17 @@ export default function LeadContextPanel({
                 className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
               />
             </Field>
-            <Field label="Product/need of interest">
-              <input
-                value={editForm.produk}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, produk: e.target.value })
-                }
-                className="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
-              />
-            </Field>
+            <LeadClassificationFields
+              values={editForm}
+              onChange={(patch) =>
+                setEditForm((f) => (f ? { ...f, ...patch } : f))
+              }
+              idPrefix="panel-"
+              inputClassName="border border-[var(--color-border)] rounded-lg px-2 py-1 w-full"
+              renderField={(label, _htmlFor, control) => (
+                <Field label={label}>{control}</Field>
+              )}
+            />
             <Field label="Estimated deal value">
               <CurrencyInput
                 value={editForm.estimasi_nilai}

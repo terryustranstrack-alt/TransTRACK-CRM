@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+// Daftar cadangan — cuma dipakai kalau tabel lead_sources masih kosong
+// (mis. migration 0025 belum dijalankan), supaya dropdown tidak kosong.
 const DEFAULT_SUMBER = [
   "Instagram Ads",
   "Facebook Ads",
@@ -14,24 +16,20 @@ const DEFAULT_SUMBER = [
 
 const supabase = createClient();
 
-// Daftar pilihan "Sumber" (asal lead) untuk dropdown SumberSelect: gabungan
-// dari daftar default di atas + nilai-nilai unik yang sudah pernah dipakai
-// di tabel leads (mis. hasil import CSV atau input custom "Lainnya").
+// Daftar pilihan "Source" (asal lead) untuk dropdown SumberSelect. Sekarang
+// diatur admin di Settings > Lead fields (tabel lead_sources). Sumber lama
+// yang tidak ada di daftar tetap tampil di lead-nya lewat opsi "Other" di
+// SumberSelect.
 export function useSumberOptions() {
   const [options, setOptions] = useState<string[]>(DEFAULT_SUMBER);
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from("leads").select("sumber");
-      if (!data) return;
-
-      const sumberYangSudahDipakai = data
-        .map((row) => row.sumber)
-        .filter((sumber): sumber is string => !!sumber);
-      const merged = Array.from(
-        new Set([...DEFAULT_SUMBER, ...sumberYangSudahDipakai]),
-      ).sort();
-      setOptions(merged);
+      const { data } = await supabase
+        .from("lead_sources")
+        .select("name")
+        .order("name");
+      if (data && data.length > 0) setOptions(data.map((row) => row.name));
     }
     load();
   }, []);
