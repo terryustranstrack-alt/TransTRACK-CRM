@@ -107,9 +107,18 @@ export default function InboxUnreadProvider({
         return;
       }
       const title = row.display_name || `+${row.external_contact_id}`;
-      new Notification(`New WhatsApp message — ${title}`, {
-        body: row.last_message_preview ?? "",
-      });
+      // Tag sama dengan notifikasi push dari server (lib/push.ts) — kalau
+      // perangkat ini juga terima push, keduanya jadi satu, tidak dobel.
+      // try/catch: Chrome Android tidak mengizinkan `new Notification()`
+      // (di sana notifikasi datang lewat push saja).
+      try {
+        new Notification(`New WhatsApp message — ${title}`, {
+          body: row.last_message_preview ?? "",
+          tag: `chat-${row.id}`,
+        });
+      } catch {
+        // abaikan — push dari server yang menangani
+      }
     }
 
     async function load() {

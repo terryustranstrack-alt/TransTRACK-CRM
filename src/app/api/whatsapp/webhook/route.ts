@@ -9,6 +9,7 @@ import {
 import { storeInboundMedia } from "@/lib/whatsappMedia";
 import { logWhatsappActivity } from "@/lib/activity";
 import { maybeEnrichLead, maybeRunBot } from "@/lib/botRunner";
+import { notifyInboundMessage } from "@/lib/push";
 
 // Unduh media (bisa lambat) dijalankan lewat after() setelah balas 200 ke
 // Meta — beri ruang durasi lebih dari default 10 detik.
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
         // dianggap 2 percakapan terpisah (lihat unique constraint di 0019).
         const { data: existingConversation } = await admin
           .from("conversations")
-          .select("id, status, lead_id")
+          .select("id, status, lead_id, assigned_to")
           .eq("channel", "whatsapp")
           .eq("external_contact_id", message.from)
           .eq("brand_id", brandId)
@@ -135,6 +136,9 @@ export async function POST(request: NextRequest) {
         let conversationId: string;
         let conversationLeadId: string | null =
           existingConversation?.lead_id ?? null;
+        // Sales yang memegang percakapan — penerima notifikasi pesan baru.
+        let conversationAssignedTo: string | null =
+          existingConversation?.assigned_to ?? null;
 
         if (existingConversation) {
           // Sudah ada percakapan — update ringkasannya. unread_count naik
@@ -190,6 +194,7 @@ export async function POST(request: NextRequest) {
           if (createError || !createdConversation) continue;
           conversationId = createdConversation.id;
           conversationLeadId = matchedLead?.id ?? null;
+          conversationAssignedTo = matchedLead?.assigned_to ?? null;
         }
 
         // Simpan pesannya sendiri. `upsert` + ignoreDuplicates supaya aman
@@ -246,6 +251,19 @@ export async function POST(request: NextRequest) {
           const convId = conversationId;
           after(() => maybeRunBot(admin, convId));
           after(() => maybeEnrichLead(admin, convId));
+        }
+
+        // Notifikasi push ke HP/browser sales (aplikasi Android, Home Screen
+        // iPhone, atau browser) — jalan setelah respons supaya webhook cepat.
+        if (isNewMessage) {
+          const chat = {
+            conversationId,
+            assignedTo: conversationAssignedTo,
+            brandId,
+            senderName: contactName || `+${message.from}`,
+            preview,
+          };
+          after(() => notifyInboundMessage(admin, chat));
         }
       }
 

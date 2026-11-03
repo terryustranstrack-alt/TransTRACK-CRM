@@ -67,6 +67,32 @@ export async function sendPushToProfiles(
   }
 }
 
+// Notifikasi "pesan WhatsApp baru masuk" — supaya sales tahu walau aplikasi
+// / tab CRM sedang ditutup. Penerima: sales yang memegang percakapan; kalau
+// belum ada yang pegang, seluruh tim brand + admin. Tag per percakapan:
+// beberapa pesan beruntun dari kontak yang sama cuma jadi SATU notifikasi
+// (yang terbaru menggantikan yang lama), tidak menumpuk.
+export async function notifyInboundMessage(
+  admin: SupabaseClient,
+  chat: {
+    conversationId: string;
+    assignedTo: string | null;
+    brandId: string | null;
+    senderName: string;
+    preview: string;
+  },
+): Promise<void> {
+  const recipients = chat.assignedTo
+    ? [chat.assignedTo]
+    : await brandTeamIds(admin, chat.brandId);
+  await sendPushToProfiles(admin, recipients, {
+    title: `💬 ${chat.senderName}`,
+    body: chat.preview,
+    url: "/inbox",
+    tag: `chat-${chat.conversationId}`,
+  });
+}
+
 // Siapa yang perlu tahu soal lead/percakapan baru yang belum dipegang
 // siapa-siapa di sebuah brand: semua admin + sales di tim brand itu.
 export async function brandTeamIds(
