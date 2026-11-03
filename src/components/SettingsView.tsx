@@ -8,6 +8,7 @@ import { useQuickReplies } from "@/lib/useQuickReplies";
 import { useBrands } from "@/lib/useBrands";
 import ForecastSettings from "@/components/ForecastSettings";
 import LeadFieldSettings from "@/components/LeadFieldSettings";
+import BusinessDetectionSettings from "@/components/BusinessDetectionSettings";
 import type { BotConfig } from "@/lib/types";
 
 const supabase = createClient();
@@ -371,6 +372,8 @@ export default function SettingsView() {
       </section>
 
       <LeadFieldSettings />
+
+      <BusinessDetectionSettings />
 
       <ForecastSettings />
     </main>

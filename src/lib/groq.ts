@@ -171,3 +171,60 @@ jabatan, kota, kebutuhan.
     return { ...EMPTY_EXTRACTION };
   }
 }
+
+// Satu pilihan business untuk ditebak AI, beserta daftar produknya sebagai
+// petunjuk (mis. Academy: "Mini Bootcamp Supply Chain", ...).
+export type BusinessOption = { name: string; products: string[] };
+
+/**
+ * Lapis 3 deteksi Business: baca isi chat lalu tebak pelanggan ini sedang
+ * menanyakan business yang mana (dan produk mana, kalau jelas). Model HARUS
+ * memilih dari daftar yang diberikan atau mengembalikan string kosong kalau
+ * belum jelas — lebih baik kosong daripada salah tebak. Gagal apa pun →
+ * kosong (best effort).
+ */
+export async function classifyBusiness(
+  history: BotHistoryTurn[],
+  options: BusinessOption[],
+): Promise<{ business: string; product: string }> {
+  const transcript = history
+    .map((t) => `${t.role === "user" ? "Customer" : "Us"}: ${t.content}`)
+    .join("\n");
+  const optionText = options
+    .map(
+      (o) =>
+        `- "${o.name}"${o.products.length ? ` — products: ${o.products.map((p) => `"${p}"`).join(", ")}` : ""}`,
+    )
+    .join("\n");
+
+  try {
+    const raw = await callGroq({
+      max_completion_tokens: 200,
+      temperature: 0,
+      reasoning_effort: "low",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `You route WhatsApp chats for TransTRACK, an Indonesian company with these businesses:
+${optionText}
+(TransTRACK = fleet management / GPS tracking software for vehicles. A business
+with "Academy" in its name = training: classes, bootcamps, webinars, certificates.)
+
+Return ONLY a JSON object: {"business": "...", "product": "..."}.
+- "business" must be EXACTLY one of the business names above, or "" if the
+  CUSTOMER's messages do not clearly show which one they want.
+- "product" must be EXACTLY one of that business's product names, or "" if
+  not clear.
+- Judge only from what the customer wrote. When unsure, return "".`,
+        },
+        { role: "user", content: transcript },
+      ],
+    });
+    const parsed = JSON.parse(raw) as Partial<Record<string, unknown>>;
+    const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+    return { business: str(parsed.business), product: str(parsed.product) };
+  } catch {
+    return { business: "", product: "" };
+  }
+}

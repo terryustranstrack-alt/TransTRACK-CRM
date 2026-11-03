@@ -19,6 +19,8 @@ import QuickReplyPicker from "@/components/QuickReplyPicker";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import { useBrands } from "@/lib/useBrands";
+import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
+import BusinessBadge from "@/components/BusinessBadge";
 import { searchMessages, type MessageSearchHit } from "@/lib/searchInbox";
 import type { Conversation, Lead, Message } from "@/lib/types";
 
@@ -147,15 +149,39 @@ export default function InboxView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Nama business & judul iklan — untuk label TransTRACK/Academy dan
+  // keterangan "dari iklan" di daftar chat dan header chat.
+  const { businessUnits } = useLeadFieldSettings();
+  const [adHeadlineById, setAdHeadlineById] = useState<Map<string, string>>(
+    new Map(),
+  );
+
   async function loadLeads() {
     const { data } = await supabase.from("leads").select("*");
     if (data) setLeads(data as Lead[]);
   }
 
+  async function loadAdHeadlines() {
+    const { data } = await supabase.from("ad_sources").select("id, headline");
+    if (data) {
+      setAdHeadlineById(
+        new Map(data.map((a) => [a.id as string, (a.headline as string) ?? ""])),
+      );
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadLeads();
+    loadAdHeadlines();
   }, []);
+
+  // Business sebuah chat: pakai isian di lead kalau ada (sudah dicek
+  // manusia), kalau belum pakai hasil deteksi otomatis chat itu.
+  function businessNameFor(conversation: Conversation, lead: Lead | null | undefined) {
+    const id = lead?.business_unit_id ?? conversation.business_unit_id;
+    return businessUnits.find((b) => b.id === id)?.name;
+  }
 
   const selectedConversation =
     conversations.find((c) => c.id === selectedConversationId) ?? null;
@@ -435,6 +461,16 @@ export default function InboxView() {
                 <p className="text-xs text-[var(--color-muted)] truncate">
                   {conversation.last_message_preview || "-"}
                 </p>
+                {(businessNameFor(conversation, lead) || conversation.ad_source_id) && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    {businessNameFor(conversation, lead) && (
+                      <BusinessBadge name={businessNameFor(conversation, lead)} />
+                    )}
+                    {conversation.ad_source_id && (
+                      <span className="text-[11px] text-[var(--color-muted)]">📣 Ad</span>
+                    )}
+                  </div>
+                )}
                 {lead && (
                   <p className="text-xs text-[var(--color-muted)] mt-1 truncate">
                     Lead: {lead.nama}
@@ -485,7 +521,20 @@ export default function InboxView() {
                 </svg>
               </button>
               <div className="min-w-0 flex-1">
-                <p className="font-medium truncate">{contactLabel(selectedConversation)}</p>
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="font-medium truncate">{contactLabel(selectedConversation)}</p>
+                  {businessNameFor(selectedConversation, linkedLead) && (
+                    <BusinessBadge name={businessNameFor(selectedConversation, linkedLead)} />
+                  )}
+                </div>
+                {selectedConversation.ad_source_id && (
+                  <p className="text-xs text-[var(--color-muted)] truncate">
+                    📣 From Meta ad
+                    {adHeadlineById.get(selectedConversation.ad_source_id)
+                      ? `: “${adHeadlineById.get(selectedConversation.ad_source_id)}”`
+                      : ""}
+                  </p>
+                )}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-muted)]">
                   <span>
                     {linkedLead ? (

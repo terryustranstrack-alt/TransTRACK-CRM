@@ -373,6 +373,20 @@ export function verifyWebhookSignature(
 }
 
 // Bentuk payload webhook WhatsApp Cloud API (subset yang dipakai app ini).
+// Data iklan yang dikirim Meta bersama pesan dari iklan Click-to-WhatsApp.
+export type WhatsappReferral = {
+  source_id?: string; // ID iklan
+  source_type?: string; // "ad" atau "post"
+  source_url?: string;
+  headline?: string;
+  body?: string;
+  media_type?: string;
+  image_url?: string;
+  video_url?: string;
+  thumbnail_url?: string;
+  ctwa_clid?: string;
+};
+
 export type WhatsappWebhookPayload = {
   object?: string;
   entry?: Array<{
@@ -388,6 +402,9 @@ export type WhatsappWebhookPayload = {
           timestamp: string;
           type: string;
           text?: { body: string };
+          // Ada kalau pelanggan mengirim pesan lewat klik iklan Meta
+          // (Click-to-WhatsApp) atau post — berisi data iklannya.
+          referral?: WhatsappReferral;
           image?: { id: string; mime_type: string };
           document?: { id: string; mime_type: string; filename?: string };
           audio?: { id: string; mime_type: string };

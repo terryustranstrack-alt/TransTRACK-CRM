@@ -10,6 +10,7 @@ import {
 } from "@/lib/groq";
 import { logWhatsappActivity } from "@/lib/activity";
 import { brandTeamIds, sendPushToProfiles } from "@/lib/push";
+import { applyDetectionToLead } from "@/lib/businessDetection";
 import type { BotConfig } from "@/lib/types";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -480,6 +481,8 @@ export async function maybeEnrichLead(
         .from("conversations")
         .update({ lead_id: matched.id })
         .eq("id", conversationId);
+      // Teruskan hasil deteksi Business (iklan/kata kunci/AI) ke lead ini.
+      await applyDetectionToLead(admin, conversationId);
       return;
     }
 
@@ -517,6 +520,8 @@ export async function maybeEnrichLead(
       created.id,
       "Lead auto-created by bot from a WhatsApp chat.",
     );
+    // Teruskan hasil deteksi Business (iklan/kata kunci/AI) ke lead baru.
+    await applyDetectionToLead(admin, conversationId);
 
     if (
       leadIsQualified({

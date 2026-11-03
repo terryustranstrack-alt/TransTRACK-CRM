@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logWhatsappActivity } from "@/lib/activity";
 import { getBrandPhoneNumberId } from "@/lib/brands";
 import { sendPushToProfiles } from "@/lib/push";
+import { applyDetectionToLead } from "@/lib/businessDetection";
 import type { ConversationStatus } from "@/lib/types";
 import {
   listMessageTemplates,
@@ -707,6 +708,8 @@ export async function createLeadFromConversation(
     .eq("id", conversationId);
 
   if (error) return { error: error.message };
+  // Isi Business/Product/iklan asal dari hasil deteksi chat ini.
+  await applyDetectionToLead(createAdminClient(), conversationId);
   revalidatePath("/inbox");
   revalidatePath("/");
   return { success: true };
@@ -740,6 +743,10 @@ export async function linkConversationToLead(
     .eq("id", conversationId);
 
   if (error) return { error: error.message };
+  // Isi field lead yang masih kosong (Business/Product/iklan asal) dari
+  // hasil deteksi chat ini. Pakai service-role karena sales biasa mungkin
+  // tidak berhak menulis catatan aktivitas atas nama sistem.
+  await applyDetectionToLead(createAdminClient(), conversationId);
   revalidatePath("/inbox");
   return { success: true };
 }

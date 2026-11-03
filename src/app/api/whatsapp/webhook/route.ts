@@ -10,6 +10,10 @@ import { storeInboundMedia } from "@/lib/whatsappMedia";
 import { logWhatsappActivity } from "@/lib/activity";
 import { maybeEnrichLead, maybeRunBot } from "@/lib/botRunner";
 import { notifyInboundMessage } from "@/lib/push";
+import {
+  detectBusinessOnInbound,
+  maybeGuessBusinessWithAI,
+} from "@/lib/businessDetection";
 
 // Unduh media (bisa lambat) dijalankan lewat after() setelah balas 200 ke
 // Meta — beri ruang durasi lebih dari default 10 detik.
@@ -244,13 +248,27 @@ export async function POST(request: NextRequest) {
           after(() => logWhatsappActivity(admin, leadId, preview));
         }
 
+        // Deteksi Business (TransTRACK / Academy) lapis 1 & 2: dari data
+        // iklan Meta di pesan ini, atau kata kunci di teksnya. Cuma baca/
+        // tulis database (tanpa AI), jadi langsung dijalankan di sini —
+        // supaya hasilnya sudah ada sebelum bot membuat lead di bawah.
+        if (isNewMessage) {
+          await detectBusinessOnInbound(admin, {
+            conversationId,
+            referral: message.referral,
+            text: textBody,
+          });
+        }
+
         // Chatbot AI: coba balas otomatis (kalau diaktifkan admin) DAN coba
         // tarik data calon pelanggan dari isi chat ke tabel leads. Keduanya
         // jalan setelah respons via after() — panggilan AI bisa 1-2 detik.
+        // Deteksi Business lapis 3 (tebakan AI) juga di sini.
         if (isNewMessage) {
           const convId = conversationId;
           after(() => maybeRunBot(admin, convId));
           after(() => maybeEnrichLead(admin, convId));
+          after(() => maybeGuessBusinessWithAI(admin, convId));
         }
 
         // Notifikasi push ke HP/browser sales (aplikasi Android, Home Screen

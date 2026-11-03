@@ -75,6 +75,7 @@ export type Lead = {
   brand_id: string | null; // brand pemilik lead ini (pool "belum diklaim")
   business_unit_id: string | null; // lead ini untuk business mana (TransTRACK / Academy)
   custom_fields: Record<string, string>; // nilai field tambahan buatan admin, key = lead_custom_fields.id
+  ad_source_id: string | null; // iklan Meta yang membawa lead ini (kalau dari iklan)
   assigned_to: string | null; // id sales yang menangani (profiles.id)
   created_by: string | null;
 };
@@ -181,6 +182,41 @@ export type Conversation = {
   bot_replies_paused: boolean; // bot berhenti balas otomatis (sudah diserahkan)
   enrich_attempts: number; // berapa kali bot coba tarik data lead dari chat ini
   brand_id: string | null; // nomor WhatsApp (brand) yang menerima chat ini
+  // Hasil deteksi otomatis Business untuk chat ini (lihat lib/businessDetection.ts)
+  business_unit_id: string | null;
+  suggested_produk: string | null;
+  business_detected_by: BusinessDetectionLayer | null;
+  ad_source_id: string | null; // iklan Meta yang membawa chat ini
+  business_guess_attempts: number;
+  created_at: string;
+};
+
+// Dari mana Business sebuah chat dikenali: data iklan Meta, kata kunci di
+// pesan pelanggan, atau tebakan AI dari isi chat.
+export type BusinessDetectionLayer = "ad" | "keyword" | "ai";
+
+// Satu iklan Meta (Click-to-WhatsApp) yang pernah membawa chat masuk.
+// Admin memetakannya ke Business + Product sekali di Settings.
+export type AdSource = {
+  id: string;
+  source_id: string; // ID iklan dari Meta
+  source_type: string | null; // "ad" atau "post"
+  headline: string | null;
+  body: string | null;
+  source_url: string | null;
+  media_url: string | null;
+  business_unit_id: string | null;
+  produk: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+};
+
+// Aturan "pesan mengandung kata kunci X → Business Y (dan Product Z)".
+export type BusinessKeywordRule = {
+  id: string;
+  keyword: string;
+  business_unit_id: string;
+  produk: string | null;
   created_at: string;
 };
 

@@ -243,7 +243,10 @@ export default function LeadContextPanel({
                 initialValues={{
                   kontak: conversation.external_contact_id,
                   nama: conversation.display_name ?? "",
-                  sumber: "WhatsApp",
+                  // Hasil deteksi otomatis chat ini langsung terisi di form.
+                  sumber: conversation.ad_source_id ? "Meta Ads" : "WhatsApp",
+                  business_unit_id: conversation.business_unit_id ?? "",
+                  produk: conversation.suggested_produk ?? "",
                 }}
                 onSaved={handleNewLeadSaved}
                 lockContact
