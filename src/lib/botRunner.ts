@@ -25,6 +25,7 @@ type ConversationRow = {
   lead_id: string | null;
   bot_replies_paused: boolean;
   brand_id: string | null;
+  business_unit_id: string | null; // hasil deteksi Business (iklan/kata kunci)
 };
 
 type MessageRow = {
@@ -70,6 +71,28 @@ function toHistory(messages: MessageRow[]): BotHistoryTurn[] {
   }));
 }
 
+// Pilih pesan sambutan untuk kontak pertama kali: kalau chat ini sudah
+// dikenali milik business tertentu (dari iklan / kata kunci di pesan
+// pertama) dan business itu punya pesan sambutan sendiri, pakai itu —
+// mis. pelanggan dari iklan Academy disapa soal kelas, bukan soal armada.
+// Selain itu pakai pesan sambutan umum di pengaturan chatbot.
+async function pickWelcomeMessage(
+  admin: AdminClient,
+  conv: ConversationRow,
+  botConfig: BotConfig,
+): Promise<string> {
+  if (conv.business_unit_id) {
+    const { data: unit } = await admin
+      .from("business_units")
+      .select("welcome_message")
+      .eq("id", conv.business_unit_id)
+      .single();
+    const own = (unit?.welcome_message as string | undefined)?.trim();
+    if (own) return own;
+  }
+  return botConfig.welcome_message.trim();
+}
+
 // Coba jalankan chatbot untuk sebuah pesan masuk. Dipanggil lewat after() di
 // webhook — jadi tidak menahan respons 200 ke Meta. Semua akses DB pakai
 // service-role client (tidak ada sesi user di konteks webhook).
@@ -81,7 +104,7 @@ export async function maybeRunBot(
     const { data: conversation } = await admin
       .from("conversations")
       .select(
-        "id, external_contact_id, assigned_to, status, lead_id, bot_replies_paused, brand_id",
+        "id, external_contact_id, assigned_to, status, lead_id, bot_replies_paused, brand_id, business_unit_id",
       )
       .eq("id", conversationId)
       .single();
@@ -124,7 +147,7 @@ export async function maybeRunBot(
     // pesan pembuka apa adanya — biasanya untuk menyapa & menanyakan data
     // calon pelanggan sekaligus. Tidak lewat AI, jadi selalu sama & lengkap.
     const hasOutbound = messages.some((m) => m.direction === "outbound");
-    const welcome = botConfig.welcome_message.trim();
+    const welcome = await pickWelcomeMessage(admin, conv, botConfig);
     if (!hasOutbound && welcome) {
       if (await botMustStayQuiet(admin, conversationId)) return;
       await deliverBotText(admin, conv, conversationId, welcome);
@@ -604,6 +627,7 @@ async function handOffToSales(
     lead_id: leadId,
     bot_replies_paused: true,
     brand_id: conv.brand_id,
+    business_unit_id: null, // tidak dipakai saat mengirim pesan serah-terima
   };
   await deliverBotText(admin, convRow, conversationId, HANDOFF_MESSAGE);
   await logBotNote(

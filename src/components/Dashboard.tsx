@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { groupDuplicates } from "@/lib/duplicates";
 import SourceReport from "@/components/SourceReport";
+import AdReport from "@/components/AdReport";
 import ForecastCard from "@/components/ForecastCard";
 import { LEAD_STATUSES, leadStatusLabel, type Lead } from "@/lib/types";
 
@@ -213,6 +214,8 @@ export default function Dashboard({
       <ForecastCard leads={stats.leadsInBrand} />
 
       <SourceReport leads={stats.leadsInBrand} />
+
+      <AdReport leads={stats.leadsInBrand} brandFilter={brandFilter} />
 
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
         <h2 className="font-medium mb-1">Needs follow-up</h2>

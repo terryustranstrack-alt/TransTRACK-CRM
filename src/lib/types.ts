@@ -85,6 +85,8 @@ export type Lead = {
 export type BusinessUnit = {
   id: string;
   name: string;
+  // Pesan sambutan chatbot khusus business ini ("" = pakai pesan umum)
+  welcome_message: string;
   created_at: string;
 };
 
