@@ -36,11 +36,14 @@ import { useSavedFilters, type ProspectFilters } from "@/lib/useSavedFilters";
 import { notifyLeadsAssigned } from "@/app/push/actions";
 import { groupDuplicates, sameContact } from "@/lib/duplicates";
 import {
+  BUSINESS_FILTER_ALL,
+  matchesBusiness,
   matchesDateRange,
   matchesKeyword,
   matchesSource,
   type LeadDateField,
 } from "@/lib/leadFilters";
+import BusinessFilter from "@/components/BusinessFilter";
 import {
   LEAD_STATUSES,
   leadStatusLabel,
@@ -149,6 +152,7 @@ export default function ProspekTable() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [brandFilter, setBrandFilter] = useState("all");
+  const [businessFilter, setBusinessFilter] = useState(BUSINESS_FILTER_ALL);
   const brands = useBrands();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<LeadEditForm>(EMPTY_EDIT_FORM);
@@ -216,6 +220,7 @@ export default function ProspekTable() {
       }
       if (!matchesDateRange(lead, dateField, dateFrom, dateTo)) return false;
       if (brandFilter !== "all" && lead.brand_id !== brandFilter) return false;
+      if (!matchesBusiness(lead, businessFilter)) return false;
       return true;
     });
   }, [
@@ -228,6 +233,7 @@ export default function ProspekTable() {
     dateFrom,
     dateTo,
     brandFilter,
+    businessFilter,
   ]);
 
   // Ada filter yang sedang aktif? Dipakai untuk menampilkan tombol
@@ -238,7 +244,8 @@ export default function ProspekTable() {
     followUpOnly ||
     dateFrom !== "" ||
     dateTo !== "" ||
-    brandFilter !== "all";
+    brandFilter !== "all" ||
+    businessFilter !== BUSINESS_FILTER_ALL;
 
   // Isi semua filter sekaligus — dipakai saat membuka saved view.
   function applyFilters(f: ProspectFilters) {
@@ -249,6 +256,7 @@ export default function ProspekTable() {
     setDateFrom(f.dateFrom);
     setDateTo(f.dateTo);
     setBrandFilter(f.brandFilter);
+    setBusinessFilter(f.businessFilter ?? BUSINESS_FILTER_ALL);
   }
 
   // Kembalikan semua filter ke kondisi awal (tampilkan semua lead).
@@ -261,6 +269,7 @@ export default function ProspekTable() {
       dateFrom: "",
       dateTo: "",
       brandFilter: "all",
+      businessFilter: BUSINESS_FILTER_ALL,
     });
     setActiveViewId("");
   }
@@ -285,6 +294,7 @@ export default function ProspekTable() {
       dateFrom,
       dateTo,
       brandFilter,
+      businessFilter,
     });
     if (saveError) {
       setError(saveError);
@@ -509,6 +519,11 @@ export default function ProspekTable() {
             + Add Lead
           </Link>
         </div>
+        <BusinessFilter
+          value={businessFilter}
+          onChange={setBusinessFilter}
+          businessUnits={businessUnits}
+        />
         <div className="flex flex-wrap gap-3">
           <input
             type="text"

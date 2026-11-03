@@ -15,6 +15,9 @@ export type ProspectFilters = {
   dateFrom: string;
   dateTo: string;
   brandFilter: string;
+  // Opsional: saved view lama (dibuat sebelum ada filter Business) tidak
+  // punya field ini — dianggap "all" saat dibuka.
+  businessFilter?: string;
 };
 
 export type SavedFilter = {

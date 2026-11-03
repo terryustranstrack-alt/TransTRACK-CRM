@@ -96,3 +96,15 @@ export function matchesDateRange(
   if (to && date > to) return false;
   return true;
 }
+
+// Nilai khusus filter Business (selain id business): tampilkan semua lead,
+// atau cuma lead yang business-nya belum diisi.
+export const BUSINESS_FILTER_ALL = "all";
+export const BUSINESS_FILTER_NONE = "none";
+
+// Cocokkan lead dengan filter Business (dipakai di Board & Prospects).
+export function matchesBusiness(lead: Lead, businessFilter: string): boolean {
+  if (businessFilter === BUSINESS_FILTER_ALL) return true;
+  if (businessFilter === BUSINESS_FILTER_NONE) return !lead.business_unit_id;
+  return lead.business_unit_id === businessFilter;
+}

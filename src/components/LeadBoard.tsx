@@ -20,6 +20,8 @@ import { useBrands } from "@/lib/useBrands";
 import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
 import { BUSINESS_TONE_CLASSES, businessTone } from "@/lib/businessStyle";
 import BusinessBadge from "@/components/BusinessBadge";
+import BusinessFilter from "@/components/BusinessFilter";
+import { BUSINESS_FILTER_ALL, matchesBusiness } from "@/lib/leadFilters";
 import {
   LEAD_STATUSES,
   leadStatusLabel,
@@ -187,6 +189,7 @@ export default function LeadBoard() {
   const [assigneeFilter, setAssigneeFilter] = useState(SEMUA_ASSIGNEE);
   const [followUpOnly, setFollowUpOnly] = useState(false);
   const [brandFilter, setBrandFilter] = useState<string>("all");
+  const [businessFilter, setBusinessFilter] = useState(BUSINESS_FILTER_ALL);
   const profiles = useProfiles();
   const brands = useBrands();
   const { profile: currentProfile } = useCurrentProfile();
@@ -267,11 +270,25 @@ export default function LeadBoard() {
         !followUpOnly ||
         needsFollowUp(lead.status, lead.tanggal_update, lead.next_step_due);
       const cocokBrand = brandFilter === "all" || lead.brand_id === brandFilter;
+      const cocokBusiness = matchesBusiness(lead, businessFilter);
       return (
-        cocokPencarian && cocokSumber && cocokAssignee && cocokFollowUp && cocokBrand
+        cocokPencarian &&
+        cocokSumber &&
+        cocokAssignee &&
+        cocokFollowUp &&
+        cocokBrand &&
+        cocokBusiness
       );
     });
-  }, [leads, search, sumberFilter, assigneeFilter, followUpOnly, brandFilter]);
+  }, [
+    leads,
+    search,
+    sumberFilter,
+    assigneeFilter,
+    followUpOnly,
+    brandFilter,
+    businessFilter,
+  ]);
 
   if (loading) {
     return <p className="p-8 text-sm text-[var(--color-muted)]">Loading leads...</p>;
@@ -282,6 +299,11 @@ export default function LeadBoard() {
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-8">
+      <BusinessFilter
+        value={businessFilter}
+        onChange={setBusinessFilter}
+        businessUnits={businessUnits}
+      />
       <div className="flex flex-wrap gap-3">
         <input
           type="text"
