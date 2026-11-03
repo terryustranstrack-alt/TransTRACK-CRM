@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "id.transtrack.crm",
+      "sha256_cert_fingerprints": [
+        "48:01:CD:7E:4D:DC:E7:16:BA:B6:04:16:CC:F8:E4:86:AE:8B:C8:84:C2:20:59:71:AE:B6:DA:4F:98:DC:8D:A6"
+      ]
+    }
+  }
+]

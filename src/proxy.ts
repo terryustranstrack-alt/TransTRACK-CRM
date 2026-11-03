@@ -13,9 +13,12 @@ export function proxy(request: NextRequest) {
 //  - sw.js & manifest.webmanifest — file notifikasi push / pasang ke Home
 //    Screen, harus selalu bisa diambil browser apa adanya;
 //  - api/cron — dipanggil penjadwal Vercel (tanpa login); route-nya
-//    menjaga diri sendiri dengan CRON_SECRET.
+//    menjaga diri sendiri dengan CRON_SECRET;
+//  - .well-known — berisi assetlinks.json, bukti bahwa aplikasi Android
+//    (APK) memang milik situs ini. Android mengambilnya tanpa login; kalau
+//    gagal, aplikasi menampilkan bar alamat browser di atas.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|api/cron|.*\\.png$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|api/cron|\\.well-known|.*\\.png$).*)",
   ],
 };
