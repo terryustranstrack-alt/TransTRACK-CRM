@@ -144,7 +144,7 @@ export default function LeadFieldSettings() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-medium">Lead fields</h2>
+      <h2 className="card-title">Lead fields</h2>
       <p className="text-xs text-[var(--color-muted)]">
         Choose what your team can pick when filling in a lead. Removing an
         item only takes it out of the dropdowns — leads that already use it

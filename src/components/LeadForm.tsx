@@ -216,7 +216,7 @@ export default function LeadForm({
           required
           value={form.nama}
           onChange={(e) => setForm({ ...form, nama: e.target.value })}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -250,7 +250,7 @@ export default function LeadForm({
           type="email"
           value={form.email}
           onChange={(e) => updateEmail(e.target.value)}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -274,7 +274,7 @@ export default function LeadForm({
           id="perusahaan"
           value={form.perusahaan}
           onChange={(e) => setForm({ ...form, perusahaan: e.target.value })}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -286,7 +286,7 @@ export default function LeadForm({
           id="jabatan"
           value={form.jabatan}
           onChange={(e) => setForm({ ...form, jabatan: e.target.value })}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -298,7 +298,7 @@ export default function LeadForm({
           id="kota"
           value={form.kota}
           onChange={(e) => setForm({ ...form, kota: e.target.value })}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -324,7 +324,7 @@ export default function LeadForm({
           id="estimasi_nilai"
           value={form.estimasi_nilai}
           onChange={(estimasi_nilai) => setForm({ ...form, estimasi_nilai })}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -337,7 +337,7 @@ export default function LeadForm({
           value={form.catatan}
           onChange={(e) => setForm({ ...form, catatan: e.target.value })}
           rows={3}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -350,7 +350,7 @@ export default function LeadForm({
           value={form.next_step}
           onChange={(e) => setForm({ ...form, next_step: e.target.value })}
           placeholder="e.g. Send quote, call to confirm schedule"
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -363,7 +363,7 @@ export default function LeadForm({
           type="date"
           value={form.next_step_due}
           onChange={(e) => setForm({ ...form, next_step_due: e.target.value })}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="field"
         />
       </div>
 
@@ -376,7 +376,7 @@ export default function LeadForm({
             id="brand_id"
             value={form.brand_id}
             onChange={(e) => setForm({ ...form, brand_id: e.target.value })}
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+            className="field"
           >
             {brands.map((b) => (
               <option key={b.id} value={b.id}>

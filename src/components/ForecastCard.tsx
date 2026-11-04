@@ -33,8 +33,8 @@ export default function ForecastCard({ leads }: { leads: Lead[] }) {
   }
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-      <h2 className="font-medium mb-1">Sales forecast</h2>
+    <div className="card p-5">
+      <h2 className="card-title mb-1">Sales forecast</h2>
       <p className="text-xs text-[var(--color-muted)] mb-3">
         Open deals weighted by stage:{" "}
         {LEAD_STATUSES.filter((s) => s !== "Closing" && s !== "Hilang")

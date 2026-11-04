@@ -18,7 +18,7 @@ export default function QuickReplyPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)]"
+        className="btn-secondary"
         title="Quick replies"
       >
         ⚡

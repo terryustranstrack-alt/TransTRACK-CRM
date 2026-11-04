@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
+import StatTile from "@/components/StatTile";
 import type { Conversation } from "@/lib/types";
 
 // Irisan kecil dari tabel leads — cuma untuk menghitung berapa yang dibuat
@@ -161,77 +162,55 @@ export default function ChatMetrics({
   }, [conversations, messages, botLeads, profiles, brandFilter]);
 
   if (loading) {
-    return (
-      <section className="px-4 sm:px-8 pb-8 max-w-3xl">
-        <p className="text-sm text-[var(--color-muted)]">Loading chat metrics…</p>
-      </section>
-    );
+    return <div className="skeleton h-56" aria-label="Loading chat metrics" />;
   }
 
   const maxCount = Math.max(1, ...stats.perSales.map((s) => s.count));
 
+  // Satu kartu "WhatsApp Inbox": angka chat & chatbot di kiri, beban chat
+  // per orang di kanan (di telepon bertumpuk).
   return (
-    <section className="px-4 sm:px-8 pb-8 flex flex-col gap-4 max-w-3xl">
-      <h2 className="font-medium">WhatsApp Inbox</h2>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-          <p className="text-xs text-[var(--color-muted)]">Open conversations</p>
-          <p className="font-data text-2xl font-semibold mt-1">{stats.openCount}</p>
-        </div>
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-          <p className="text-xs text-[var(--color-muted)]">Awaiting a reply</p>
-          <p className="font-data text-2xl font-semibold mt-1 text-[var(--color-warning)]">
-            {stats.unanswered}
-          </p>
-        </div>
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-          <p className="text-xs text-[var(--color-muted)]">Avg. first reply</p>
-          <p className="font-data text-2xl font-semibold mt-1">
-            {formatDuration(stats.avgReplyMs)}
-          </p>
-        </div>
-      </div>
-
+    <section className="card p-5 flex flex-col gap-4">
       <div>
-        <p className="text-xs text-[var(--color-muted)] mb-2">Chatbot</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-            <p className="text-xs text-[var(--color-muted)]">Bot replies sent (30d)</p>
-            <p className="font-data text-2xl font-semibold mt-1 text-[var(--color-ai)]">
-              {stats.botReplies}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-            <p className="text-xs text-[var(--color-muted)]">Leads captured by bot</p>
-            <p className="font-data text-2xl font-semibold mt-1 text-[var(--color-ai)]">
-              {stats.botLeadCount}
-            </p>
-          </div>
-        </div>
+        <h2 className="card-title">WhatsApp Inbox</h2>
+        <p className="text-xs text-[var(--color-muted)]">
+          Live conversation load and chatbot activity
+        </p>
       </div>
 
-      {stats.perSales.length > 0 && (
-        <div>
-          <p className="text-xs text-[var(--color-muted)] mb-2">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <StatTile label="Open conversations" value={stats.openCount} />
+          <StatTile label="Awaiting a reply" value={stats.unanswered} tone="warning" />
+          <StatTile label="Avg. first reply" value={formatDuration(stats.avgReplyMs)} />
+          <StatTile label="Bot replies sent (30d)" value={stats.botReplies} tone="ai" />
+          <StatTile label="Leads captured by bot" value={stats.botLeadCount} tone="ai" />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-[var(--color-muted)] mb-3">
             Open conversations by person
           </p>
-          <div className="flex flex-col gap-2">
-            {stats.perSales.map((s) => (
-              <div key={s.name} className="flex items-center gap-2 text-sm">
-                <span className="w-32 shrink-0 truncate">{s.name}</span>
-                <div className="flex-1 h-2 bg-[var(--color-muted-bg)] rounded-full overflow-hidden">
-                  <div
-                    className="h-2 bg-brand rounded-full"
-                    style={{ width: `${(s.count / maxCount) * 100}%` }}
-                  />
+          {stats.perSales.length === 0 ? (
+            <p className="text-sm text-[var(--color-muted)]">No open conversations.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {stats.perSales.map((s) => (
+                <div key={s.name} className="flex items-center gap-2 text-sm">
+                  <span className="w-28 shrink-0 truncate">{s.name}</span>
+                  <div className="flex-1 h-2 bg-[var(--color-muted-bg)] rounded-full overflow-hidden">
+                    <div
+                      className="h-2 bg-brand rounded-full"
+                      style={{ width: `${(s.count / maxCount) * 100}%` }}
+                    />
+                  </div>
+                  <span className="font-data w-6 text-right text-xs">{s.count}</span>
                 </div>
-                <span className="font-data w-6 text-right text-xs">{s.count}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }

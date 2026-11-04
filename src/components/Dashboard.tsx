@@ -9,7 +9,13 @@ import { BUSINESS_FILTER_ALL, matchesBusiness } from "@/lib/leadFilters";
 import SourceReport from "@/components/SourceReport";
 import AdReport from "@/components/AdReport";
 import ForecastCard from "@/components/ForecastCard";
-import { LEAD_STATUSES, leadStatusLabel, type Lead } from "@/lib/types";
+import StatTile, { ChangeHint } from "@/components/StatTile";
+import {
+  LEAD_STATUSES,
+  leadStatusLabel,
+  type Lead,
+  type LeadStatus,
+} from "@/lib/types";
 
 const supabase = createClient();
 const SATU_MINGGU_MS = 7 * 24 * 60 * 60 * 1000;
@@ -76,6 +82,12 @@ export default function Dashboard({
     const leadsMingguIni = leadsInBrand.filter(
       (lead) => now - new Date(lead.tanggal_masuk).getTime() <= SATU_MINGGU_MS,
     ).length;
+    // Lead masuk 7 hari SEBELUMNYA (hari ke-8 s/d ke-14 yang lalu) — untuk
+    // keterangan "naik/turun dibanding minggu lalu" di kotak angka.
+    const leadsMingguLalu = leadsInBrand.filter((lead) => {
+      const age = now - new Date(lead.tanggal_masuk).getTime();
+      return age > SATU_MINGGU_MS && age <= 2 * SATU_MINGGU_MS;
+    }).length;
 
     // Total estimasi nilai dari lead yang masih "hidup" (belum closing,
     // belum hilang) — potensi revenue yang belum terealisasi.
@@ -111,6 +123,7 @@ export default function Dashboard({
       perStatus,
       conversionRate,
       leadsMingguIni,
+      leadsMingguLalu,
       pipelineAktif,
       nilaiClosing,
       followUpLeads,
@@ -118,12 +131,10 @@ export default function Dashboard({
     };
   }, [leads, now, brandFilter, businessFilter]);
 
-  if (loading) {
-    return <p className="p-8 text-sm text-[var(--color-muted)]">Loading dashboard…</p>;
-  }
+  if (loading) return <DashboardSkeleton />;
   if (error) {
     return (
-      <p className="p-8 text-sm text-[var(--color-danger)]">Failed to load: {error}</p>
+      <p className="text-sm text-[var(--color-danger)]">Failed to load: {error}</p>
     );
   }
 
@@ -135,174 +146,205 @@ export default function Dashboard({
     ...stats.perStatus.map((statusGroup) => statusGroup.count),
   );
 
-  const TILES = [
-    { label: "Total leads", value: stats.totalLeads, accent: "brand" as const },
-    {
-      // The one hero number per screen — the metric worth spending the
-      // brand's red on (see globals.css token comment).
-      label: "Conversion rate",
-      value: `${stats.conversionRate.toFixed(1)}%`,
-      accent: "accent" as const,
-    },
-    {
-      label: "New leads this week",
-      value: stats.leadsMingguIni,
-      accent: "brand" as const,
-    },
-    {
-      label: "Won value",
-      value: formatRupiah(stats.nilaiClosing),
-      accent: "success" as const,
-    },
-  ];
-  const ACCENT_CLASS: Record<(typeof TILES)[number]["accent"], string> = {
-    brand: "text-brand",
-    accent: "text-accent",
-    success: "text-[var(--color-success)]",
-  };
-
-  // Status "hasil akhir" (menang/kalah) diberi warna sesuai artinya di
-  // grafik batang; status yang masih berjalan tetap warna brand netral.
-  const BAR_COLOR: Record<string, string> = {
-    Closing: "bg-[var(--color-success)]",
-    Hilang: "bg-[var(--color-danger)]",
-  };
-
   return (
-    <main className="p-4 sm:p-8 flex flex-col gap-8 max-w-3xl">
-      <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+    <>
+      {/* Angka ringkasan. Conversion rate = satu-satunya angka merah
+          (aksen brand) di layar ini — lihat catatan warna di globals.css. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatTile label="Total leads" value={stats.totalLeads} />
+        <StatTile
+          label="Conversion rate"
+          value={`${stats.conversionRate.toFixed(1)}%`}
+          tone="accent"
+          hint="Leads that reached Won"
+        />
+        <StatTile
+          label="New leads this week"
+          value={stats.leadsMingguIni}
+          hint={
+            <ChangeHint
+              current={stats.leadsMingguIni}
+              previous={stats.leadsMingguLalu}
+              label="last week"
+            />
+          }
+        />
+        <StatTile
+          label="Won value"
+          value={formatRupiah(stats.nilaiClosing)}
+          tone="success"
+        />
+      </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {TILES.map((tile) => (
-          <div
-            key={tile.label}
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm"
-          >
-            <p className="text-xs font-medium text-[var(--color-muted)]">
-              {tile.label}
-            </p>
-            <p
-              className={`font-data text-2xl font-semibold mt-1 ${ACCENT_CLASS[tile.accent]}`}
-            >
-              {tile.value}
-            </p>
+      {/* Dua kolom di layar lebar: analisis di kiri, daftar "perlu
+          ditindaklanjuti" di kanan. Di telepon kolom kanan tampil PALING
+          ATAS (order-first) karena itu yang paling perlu dikerjakan. */}
+      <div className="grid gap-6 lg:grid-cols-3 items-start">
+        <div className="lg:col-span-2 flex flex-col gap-6 min-w-0">
+          <PipelineCard
+            perStatus={stats.perStatus}
+            pipelineAktif={stats.pipelineAktif}
+            maxCount={maxCount}
+          />
+          <ForecastCard leads={stats.leadsInBrand} />
+          <SourceReport leads={stats.leadsInBrand} />
+        </div>
+
+        <div className="order-first lg:order-none flex flex-col gap-6 min-w-0">
+          <FollowUpCard leads={stats.followUpLeads} />
+          {stats.duplicateGroups.length > 0 && (
+            <div className="card p-5">
+              <h2 className="card-title mb-1">Possible duplicate leads</h2>
+              <p className="text-xs text-[var(--color-muted)] mb-3">
+                {stats.duplicateGroups.length} group
+                {stats.duplicateGroups.length === 1 ? "" : "s"} of leads share a
+                phone or email
+              </p>
+              <Link href="/prospek" className="text-sm text-accent hover:underline">
+                Review in Prospects →
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <AdReport leads={stats.leadsInBrand} brandFilter={brandFilter} />
+    </>
+  );
+}
+
+// Status "hasil akhir" (menang/kalah) diberi warna sesuai artinya di
+// grafik batang; status yang masih berjalan tetap warna brand netral.
+const BAR_COLOR: Partial<Record<LeadStatus, string>> = {
+  Closing: "bg-[var(--color-success)]",
+  Hilang: "bg-[var(--color-danger)]",
+};
+
+// Kartu "Pipeline distribution": grafik batang jumlah lead per status.
+function PipelineCard({
+  perStatus,
+  pipelineAktif,
+  maxCount,
+}: {
+  perStatus: { status: LeadStatus; count: number; totalNilai: number }[];
+  pipelineAktif: number;
+  maxCount: number;
+}) {
+  return (
+    <div className="card p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+        <h2 className="card-title">Pipeline distribution</h2>
+        <p className="text-xs text-[var(--color-muted)]">
+          Active potential{" "}
+          <span className="font-data font-semibold text-foreground">
+            {formatRupiah(pipelineAktif)}
+          </span>
+        </p>
+      </div>
+      <div className="flex flex-col gap-3">
+        {perStatus.map((statusGroup) => (
+          <div key={statusGroup.status}>
+            <div className="flex justify-between text-sm mb-1">
+              <span>{leadStatusLabel(statusGroup.status)}</span>
+              <span className="font-data text-xs text-[var(--color-muted)]">
+                {statusGroup.count} · {formatRupiah(statusGroup.totalNilai)}
+              </span>
+            </div>
+            <div className="h-2 bg-[var(--color-muted-bg)] rounded-full overflow-hidden">
+              <div
+                className={`h-2 rounded-full transition-[width] ${
+                  BAR_COLOR[statusGroup.status] ?? "bg-brand"
+                }`}
+                style={{ width: `${(statusGroup.count / maxCount) * 100}%` }}
+              />
+            </div>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
 
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-        <h2 className="font-medium mb-1">Pipeline distribution</h2>
-        <p className="font-data text-xs text-[var(--color-muted)] mb-4">
-          Active potential: {formatRupiah(stats.pipelineAktif)}
-        </p>
-        <div className="flex flex-col gap-3">
-          {stats.perStatus.map((statusGroup) => (
-            <div key={statusGroup.status}>
-              <div className="flex justify-between text-sm mb-1">
-                <span>{leadStatusLabel(statusGroup.status)}</span>
-                <span className="font-data text-xs text-[var(--color-muted)]">
-                  {statusGroup.count} · {formatRupiah(statusGroup.totalNilai)}
+// Kartu "Needs follow-up": lead yang jatuh tempo / sudah lama diam, yang
+// paling mendesak di atas. Tanggal lewat = merah, hari ini = oranye.
+function FollowUpCard({ leads }: { leads: Lead[] }) {
+  const SHOWN = 8;
+  return (
+    <div className="card p-5">
+      <div className="flex items-baseline justify-between gap-2 mb-1">
+        <h2 className="card-title">Needs follow-up</h2>
+        <span className="font-data text-xs font-semibold rounded-full bg-[var(--color-muted-bg)] px-2 py-0.5">
+          {leads.length}
+        </span>
+      </div>
+      <p className="text-xs text-[var(--color-muted)] mb-4">
+        Leads waiting on a next step
+      </p>
+      {leads.length === 0 ? (
+        <p className="text-sm text-[var(--color-muted)]">Nothing overdue. Nice.</p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-[var(--color-border)]">
+          {leads.slice(0, SHOWN).map((lead) => {
+            const state = nextStepState(lead.next_step_due);
+            return (
+              <li key={lead.id} className="py-2.5 first:pt-0 flex flex-col gap-0.5 min-w-0">
+                <Link
+                  href={`/leads/${lead.id}`}
+                  className="text-sm font-medium hover:underline truncate"
+                >
+                  {lead.nama}
+                </Link>
+                <span className="text-xs text-[var(--color-muted)] truncate">
+                  {lead.next_step ? (
+                    <>
+                      {lead.next_step}
+                      {lead.next_step_due && (
+                        <span
+                          className={
+                            state === "overdue"
+                              ? " text-[var(--color-danger)] font-medium"
+                              : state === "today"
+                                ? " text-[var(--color-warning)] font-medium"
+                                : ""
+                          }
+                        >
+                          {" · "}
+                          {new Date(lead.next_step_due).toLocaleDateString("id-ID")}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    `Idle since ${new Date(lead.tanggal_update).toLocaleDateString("id-ID")}`
+                  )}
                 </span>
-              </div>
-              <div className="h-2 bg-[var(--color-muted-bg)] rounded-full overflow-hidden">
-                <div
-                  className={`h-2 rounded-full transition-[width] ${
-                    BAR_COLOR[statusGroup.status] ?? "bg-brand"
-                  }`}
-                  style={{ width: `${(statusGroup.count / maxCount) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <ForecastCard leads={stats.leadsInBrand} />
-
-      <SourceReport leads={stats.leadsInBrand} />
-
-      <AdReport leads={stats.leadsInBrand} brandFilter={brandFilter} />
-
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-        <h2 className="font-medium mb-1">Needs follow-up</h2>
-        <p className="font-data text-xs text-[var(--color-muted)] mb-4">
-          {stats.followUpLeads.length} lead
-          {stats.followUpLeads.length === 1 ? "" : "s"} waiting on a next step
-        </p>
-        {stats.followUpLeads.length === 0 ? (
-          <p className="text-sm text-[var(--color-muted)]">
-            Nothing overdue. Nice.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {stats.followUpLeads.slice(0, 6).map((lead) => {
-              const state = nextStepState(lead.next_step_due);
-              return (
-                <li key={lead.id} className="flex justify-between gap-3 text-sm">
-                  <Link
-                    href={`/leads/${lead.id}`}
-                    className="font-medium hover:underline truncate"
-                  >
-                    {lead.nama}
-                  </Link>
-                  <span className="text-[var(--color-muted)] shrink-0 text-right">
-                    {lead.next_step ? (
-                      <>
-                        {lead.next_step}
-                        {lead.next_step_due && (
-                          <span
-                            className={
-                              state === "overdue"
-                                ? " text-[var(--color-danger)] font-medium"
-                                : state === "today"
-                                  ? " text-[var(--color-warning)] font-medium"
-                                  : ""
-                            }
-                          >
-                            {" · "}
-                            {new Date(lead.next_step_due).toLocaleDateString(
-                              "id-ID",
-                            )}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      `Idle since ${new Date(
-                        lead.tanggal_update,
-                      ).toLocaleDateString("id-ID")}`
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {stats.followUpLeads.length > 6 && (
-          <Link
-            href="/prospek"
-            className="text-sm text-accent hover:underline mt-3 inline-block"
-          >
-            View all in Prospects →
-          </Link>
-        )}
-      </div>
-
-      {stats.duplicateGroups.length > 0 && (
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-          <h2 className="font-medium mb-1">Possible duplicate leads</h2>
-          <p className="font-data text-xs text-[var(--color-muted)] mb-3">
-            {stats.duplicateGroups.length} group
-            {stats.duplicateGroups.length === 1 ? "" : "s"} of leads share a
-            phone or email
-          </p>
-          <Link
-            href="/prospek"
-            className="text-sm text-accent hover:underline"
-          >
-            Review in Prospects →
-          </Link>
-        </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </main>
+      {leads.length > SHOWN && (
+        <Link href="/prospek" className="text-sm text-accent hover:underline mt-3 inline-block">
+          View all {leads.length} in Prospects →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// Kerangka abu-abu berdenyut selama data dashboard dimuat (pengganti
+// tulisan "Loading…").
+function DashboardSkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton h-[88px]" />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="skeleton h-72 lg:col-span-2" />
+        <div className="skeleton h-72" />
+      </div>
+    </>
   );
 }

@@ -21,21 +21,24 @@ export default function BusinessWelcomeSettings() {
   if (businessUnits.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-3 border border-[var(--color-border)] rounded-lg p-3">
+    <div className="card p-5 flex flex-col gap-4">
       <div>
-        <h3 className="text-sm font-medium">Welcome message per business</h3>
+        <h3 className="card-title">Welcome message per business</h3>
         <p className="text-xs text-[var(--color-muted)]">
           Sent word-for-word the first time a new contact messages, before
           the AI takes over — use it to greet and ask for the details you
           want. A chat already recognised as a business (from the Meta ad
-          they clicked or a keyword in their first message — see Business
-          detection below) gets that business&apos;s message. Chats not yet
+          they clicked or a keyword in their first message — see the Business
+          detection tab) gets that business&apos;s message. Chats not yet
           recognised get the TransTRACK message.
         </p>
       </div>
-      {businessUnits.map((unit) => (
-        <WelcomeEditor key={unit.id} unit={unit} onSaved={reload} />
-      ))}
+      {/* TransTRACK & Academy berdampingan di layar lebar. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {businessUnits.map((unit) => (
+          <WelcomeEditor key={unit.id} unit={unit} onSaved={reload} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -77,14 +80,14 @@ function WelcomeEditor({
             ? ACADEMY_PLACEHOLDER
             : "Greeting sent to new contacts for this business"
         }
-        className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+        className="field"
       />
       <span className="flex items-center gap-2">
         <button
           type="button"
           onClick={handleSave}
           disabled={!changed || saving}
-          className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           {saving ? "Saving…" : "Save"}
         </button>

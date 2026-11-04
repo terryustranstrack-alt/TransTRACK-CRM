@@ -141,7 +141,7 @@ export default function LeaderboardView({
             e.target.value && router.push(`/leaderboard?month=${e.target.value}`)
           }
           aria-label="Month"
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+          className="field"
         />
       </div>
 

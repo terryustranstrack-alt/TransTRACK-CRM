@@ -26,7 +26,7 @@ type InboxUnreadValue = {
 
 const InboxUnreadContext = createContext<InboxUnreadValue | null>(null);
 
-// Dipakai NavMenu (badge angka) & InboxNotifier (tombol izin + mute). Kalau
+// Dipakai Sidebar/MobileNav (badge angka) & InboxNotifier (tombol izin + mute). Kalau
 // dipanggil di luar provider (mis. halaman login), balikin nilai default aman.
 export function useInboxUnread(): InboxUnreadValue {
   return (

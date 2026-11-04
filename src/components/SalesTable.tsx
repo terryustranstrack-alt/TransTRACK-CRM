@@ -133,7 +133,7 @@ export default function SalesTable() {
         <button
           type="button"
           onClick={() => setShowForm((v) => !v)}
-          className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+          className="btn-primary"
         >
           {showForm ? "Close" : "+ Add Sales"}
         </button>
@@ -154,7 +154,7 @@ export default function SalesTable() {
               id="nama"
               name="nama"
               required
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2"
+              className="field"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -166,14 +166,14 @@ export default function SalesTable() {
               name="email"
               type="email"
               required
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2"
+              className="field"
             />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="phone" className="text-sm font-medium">
               Phone
             </label>
-            <input id="phone" name="phone" className="border border-[var(--color-border)] rounded-lg px-3 py-2" />
+            <input id="phone" name="phone" className="field" />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="password" className="text-sm font-medium">
@@ -185,7 +185,7 @@ export default function SalesTable() {
               type="password"
               required
               minLength={6}
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2"
+              className="field"
             />
           </div>
           {brands.length > 1 && (
@@ -197,7 +197,7 @@ export default function SalesTable() {
                 id="brand_id"
                 name="brand_id"
                 defaultValue={brands.find((b) => b.is_default)?.id ?? ""}
-                className="border border-[var(--color-border)] rounded-lg px-3 py-2"
+                className="field"
               >
                 {brands.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -210,7 +210,7 @@ export default function SalesTable() {
           <button
             type="submit"
             disabled={formPending}
-            className="self-start bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+            className="btn-primary self-start"
           >
             {formPending ? "Saving..." : "Save Sales"}
           </button>

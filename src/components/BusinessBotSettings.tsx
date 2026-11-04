@@ -23,19 +23,22 @@ export default function BusinessBotSettings() {
   if (businessUnits.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-3 border border-[var(--color-border)] rounded-lg p-3">
+    <div className="card p-5 flex flex-col gap-4">
       <div>
-        <h3 className="text-sm font-medium">Bot instructions &amp; FAQ per business</h3>
+        <h3 className="card-title">Bot instructions &amp; FAQ per business</h3>
         <p className="text-xs text-[var(--color-muted)]">
           When a chat is recognised as a business (from the Meta ad, a
-          keyword, or the AI guess — see Business detection below), the bot
+          keyword, or the AI guess — see the Business detection tab), the bot
           answers using that business&apos;s instructions and FAQ. Chats not
           yet recognised use the TransTRACK instructions and FAQ.
         </p>
       </div>
-      {businessUnits.map((unit) => (
-        <BotInstructionsEditor key={unit.id} unit={unit} onSaved={reload} />
-      ))}
+      {/* TransTRACK & Academy berdampingan di layar lebar. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {businessUnits.map((unit) => (
+          <BotInstructionsEditor key={unit.id} unit={unit} onSaved={reload} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -81,7 +84,7 @@ function BotInstructionsEditor({
           placeholder={
             isAcademy ? ACADEMY_PROMPT_PLACEHOLDER : "Who the bot is and how it should answer for this business"
           }
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+          className="field"
         />
       </label>
       <label className="flex flex-col gap-1">
@@ -95,7 +98,7 @@ function BotInstructionsEditor({
           placeholder={
             isAcademy ? ACADEMY_FAQ_PLACEHOLDER : "Questions & answers the bot may use for this business"
           }
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+          className="field"
         />
       </label>
       <span className="flex items-center gap-2">
@@ -103,7 +106,7 @@ function BotInstructionsEditor({
           type="button"
           onClick={handleSave}
           disabled={!changed || saving}
-          className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           {saving ? "Saving…" : "Save"}
         </button>

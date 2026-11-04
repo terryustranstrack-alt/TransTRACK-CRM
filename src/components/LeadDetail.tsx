@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -223,14 +223,19 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
     router.push("/");
   }
 
-  if (loading) return <p className="p-8 text-sm text-[var(--color-muted)]">Loading lead...</p>;
+  if (loading) return <LeadDetailSkeleton />;
   if (error) {
     return <p className="p-8 text-sm text-[var(--color-danger)]">Failed to load: {error}</p>;
   }
   if (!lead) return <p className="p-8 text-sm text-[var(--color-muted)]">Lead not found.</p>;
 
+  const assignee = profiles.find((p) => p.id === lead.assigned_to);
+
+  // Tata letak: kepala halaman (nama, status, tombol aksi) di atas, lalu
+  // dua kolom di layar lebar — data lead di kiri, catatan & timeline di
+  // kanan. Di telepon semuanya bertumpuk.
   return (
-    <main className="p-4 sm:p-8 max-w-2xl flex flex-col gap-6">
+    <main className="p-4 sm:p-8 w-full max-w-6xl flex flex-col gap-6">
       <Link
         href="/"
         className="text-sm text-[var(--color-muted)] hover:text-foreground hover:underline self-start"
@@ -238,44 +243,53 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
         ← Back to Board
       </Link>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2 mb-1">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <BusinessBadge
               size="md"
               name={businessUnits.find((b) => b.id === lead.business_unit_id)?.name}
             />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">{lead.nama}</h1>
-          <p className="text-sm text-[var(--color-muted)]">
-            Added: {new Date(lead.tanggal_masuk).toLocaleString("id-ID")} ·
-            Last updated:{" "}
-            {new Date(lead.tanggal_update).toLocaleString("id-ID")}
+          <h1 className="text-2xl font-semibold tracking-tight break-words">{lead.nama}</h1>
+          <p className="text-sm text-[var(--color-muted)] mt-1">
+            Added <span className="font-data">{new Date(lead.tanggal_masuk).toLocaleString("id-ID")}</span>
+            {" · "}Updated{" "}
+            <span className="font-data">{new Date(lead.tanggal_update).toLocaleString("id-ID")}</span>
           </p>
           {hasWaConversation && (
             <Link
               href="/inbox"
-              className="text-sm text-[var(--color-success)] hover:underline"
+              className="inline-block mt-1 text-sm text-[var(--color-success)] hover:underline"
             >
               💬 Has a WhatsApp conversation — View in Inbox
             </Link>
           )}
         </div>
-        <div className="flex shrink-0 gap-2 flex-wrap">
-          {!isEditing && currentProfile?.is_admin && (
-            <Link
-              href={`/leads/${lead.id}/merge`}
-              className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-1.5 hover:bg-[var(--color-muted-bg)]"
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {/* Status di kepala halaman: hal yang paling sering diubah. */}
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-[var(--color-muted)]">Status</span>
+            <select
+              value={lead.status}
+              onChange={(e) => handleStatusChange(e.target.value as LeadStatus)}
+              className="field font-medium"
             >
+              {LEAD_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {leadStatusLabel(s)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {!isEditing && currentProfile?.is_admin && (
+            <Link href={`/leads/${lead.id}/merge`} className="btn-secondary">
               Merge
             </Link>
           )}
           {!isEditing && (
-            <button
-              type="button"
-              onClick={startEdit}
-              className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-1.5 hover:bg-[var(--color-muted-bg)]"
-            >
+            <button type="button" onClick={startEdit} className="btn-secondary">
               Edit
             </button>
           )}
@@ -284,7 +298,7 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
             onClick={handleDelete}
             disabled={deleting}
             onBlur={() => setConfirmDelete(false)}
-            className="text-sm text-[var(--color-danger)] border border-[var(--color-danger)] rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50"
+            className="btn-secondary text-[var(--color-danger)] border-[var(--color-danger)] hover:bg-red-50"
           >
             {deleting
               ? "Deleting..."
@@ -295,382 +309,312 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
         </div>
       </div>
 
-      {isEditing ? (
-        <form
-          onSubmit={handleSaveEdit}
-          className="flex flex-col gap-4 border border-[var(--color-border)] rounded-xl p-4"
-        >
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Business</span>
-            <BusinessPicker
-              value={editForm.business_unit_id}
-              produk={editForm.produk}
-              onChange={(patch) => setEditForm((f) => ({ ...f, ...patch }))}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-nama" className="text-sm font-medium">
-              Name
-            </label>
-            <input
-              id="edit-nama"
-              required
-              value={editForm.nama}
-              onChange={(e) =>
-                setEditForm({ ...editForm, nama: e.target.value })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-kontak" className="text-sm font-medium">
-              Contact (WhatsApp/phone number)
-            </label>
-            <input
-              id="edit-kontak"
-              required
-              value={editForm.kontak}
-              onChange={(e) =>
-                setEditForm({ ...editForm, kontak: e.target.value })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-sumber" className="text-sm font-medium">
-              Source
-            </label>
-            <SumberSelect
-              id="edit-sumber"
-              value={editForm.sumber}
-              onChange={(sumber) => setEditForm({ ...editForm, sumber })}
-              options={sumberOptions}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-perusahaan" className="text-sm font-medium">
-              Company
-            </label>
-            <input
-              id="edit-perusahaan"
-              value={editForm.perusahaan}
-              onChange={(e) =>
-                setEditForm({ ...editForm, perusahaan: e.target.value })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-jabatan" className="text-sm font-medium">
-              Job title
-            </label>
-            <input
-              id="edit-jabatan"
-              value={editForm.jabatan}
-              onChange={(e) =>
-                setEditForm({ ...editForm, jabatan: e.target.value })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-email" className="text-sm font-medium">
-              Email
-            </label>
-            <input
-              id="edit-email"
-              type="email"
-              value={editForm.email}
-              onChange={(e) =>
-                setEditForm({ ...editForm, email: e.target.value })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-kota" className="text-sm font-medium">
-              City/region
-            </label>
-            <input
-              id="edit-kota"
-              value={editForm.kota}
-              onChange={(e) =>
-                setEditForm({ ...editForm, kota: e.target.value })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <LeadClassificationFields
-            values={editForm}
-            onChange={(patch) => setEditForm((f) => ({ ...f, ...patch }))}
-            idPrefix="edit-"
-            inputClassName="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            renderField={(label, htmlFor, control) => (
+      <div className="grid gap-6 lg:grid-cols-5 items-start">
+        <section className="card p-5 lg:col-span-2 min-w-0">
+          <h2 className="card-title mb-4">{isEditing ? "Edit lead" : "Details"}</h2>
+          {isEditing ? (
+            <form onSubmit={handleSaveEdit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <label htmlFor={htmlFor} className="text-sm font-medium">
-                  {label}
-                </label>
-                {control}
+                <span className="text-sm font-medium">Business</span>
+                <BusinessPicker
+                  value={editForm.business_unit_id}
+                  produk={editForm.produk}
+                  onChange={(patch) => setEditForm((f) => ({ ...f, ...patch }))}
+                />
               </div>
-            )}
-          />
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="edit-estimasi_nilai"
-              className="text-sm font-medium"
-            >
-              Estimated deal value
-            </label>
-            <CurrencyInput
-              id="edit-estimasi_nilai"
-              value={editForm.estimasi_nilai}
-              onChange={(estimasi_nilai) =>
-                setEditForm({ ...editForm, estimasi_nilai })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+              <EditField id="edit-nama" label="Name">
+                <input
+                  id="edit-nama"
+                  required
+                  value={editForm.nama}
+                  onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })}
+                  className="field"
+                />
+              </EditField>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-catatan" className="text-sm font-medium">
-              Notes / requirements
-            </label>
-            <textarea
-              id="edit-catatan"
-              value={editForm.catatan}
-              onChange={(e) =>
-                setEditForm({ ...editForm, catatan: e.target.value })
-              }
-              rows={3}
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+              <EditField id="edit-kontak" label="Contact (WhatsApp/phone number)">
+                <input
+                  id="edit-kontak"
+                  required
+                  value={editForm.kontak}
+                  onChange={(e) => setEditForm({ ...editForm, kontak: e.target.value })}
+                  className="field"
+                />
+              </EditField>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-next_step" className="text-sm font-medium">
-              Next step
-            </label>
-            <input
-              id="edit-next_step"
-              value={editForm.next_step}
-              onChange={(e) =>
-                setEditForm({ ...editForm, next_step: e.target.value })
-              }
-              placeholder="e.g. Send quote, call to confirm schedule"
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+              <EditField id="edit-sumber" label="Source">
+                <SumberSelect
+                  id="edit-sumber"
+                  value={editForm.sumber}
+                  onChange={(sumber) => setEditForm({ ...editForm, sumber })}
+                  options={sumberOptions}
+                />
+              </EditField>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-next_step_due" className="text-sm font-medium">
-              Next step due date
-            </label>
-            <input
-              id="edit-next_step_due"
-              type="date"
-              value={editForm.next_step_due}
-              onChange={(e) =>
-                setEditForm({ ...editForm, next_step_due: e.target.value })
-              }
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+              <EditField id="edit-perusahaan" label="Company">
+                <input
+                  id="edit-perusahaan"
+                  value={editForm.perusahaan}
+                  onChange={(e) => setEditForm({ ...editForm, perusahaan: e.target.value })}
+                  className="field"
+                />
+              </EditField>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="edit-assigned_to" className="text-sm font-medium">
-              Assigned to
-            </label>
-            {currentProfile?.is_admin ? (
-              <AssigneeSelect
-                id="edit-assigned_to"
-                value={editForm.assigned_to || null}
-                onChange={(assigned_to) =>
-                  setEditForm({ ...editForm, assigned_to: assigned_to ?? "" })
-                }
-                profiles={profiles}
-              />
-            ) : (
-              <p className="text-sm text-[var(--color-muted)] px-3 py-2 border border-[var(--color-border)] rounded-lg bg-[var(--color-muted-bg)]">
-                {currentProfile ? profileLabel(currentProfile) : "-"}
-              </p>
-            )}
-          </div>
+              <EditField id="edit-jabatan" label="Job title">
+                <input
+                  id="edit-jabatan"
+                  value={editForm.jabatan}
+                  onChange={(e) => setEditForm({ ...editForm, jabatan: e.target.value })}
+                  className="field"
+                />
+              </EditField>
 
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsEditing(false)}
-              disabled={saving}
-              className="border border-[var(--color-border)] rounded-lg px-4 py-2 text-sm hover:bg-[var(--color-muted-bg)]"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <dt className="text-[var(--color-muted)]">Contact</dt>
-          <dd>{lead.kontak}</dd>
+              <EditField id="edit-email" label="Email">
+                <input
+                  id="edit-email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="field"
+                />
+              </EditField>
 
-          <dt className="text-[var(--color-muted)]">Source</dt>
-          <dd>{lead.sumber || "-"}</dd>
+              <EditField id="edit-kota" label="City/region">
+                <input
+                  id="edit-kota"
+                  value={editForm.kota}
+                  onChange={(e) => setEditForm({ ...editForm, kota: e.target.value })}
+                  className="field"
+                />
+              </EditField>
 
-          <dt className="text-[var(--color-muted)]">Company</dt>
-          <dd>{lead.perusahaan || "-"}</dd>
-
-          <dt className="text-[var(--color-muted)]">Job title</dt>
-          <dd>{lead.jabatan || "-"}</dd>
-
-          <dt className="text-[var(--color-muted)]">Email</dt>
-          <dd>{lead.email || "-"}</dd>
-
-          <dt className="text-[var(--color-muted)]">City/region</dt>
-          <dd>{lead.kota || "-"}</dd>
-
-          <dt className="text-[var(--color-muted)]">Product/need</dt>
-          <dd>{lead.produk || "-"}</dd>
-
-          {/* Field tambahan buatan admin — cuma yang ada isinya, supaya
-              daftar tidak penuh "-" untuk field milik business lain. */}
-          {customFields
-            .filter((f) => lead.custom_fields?.[f.id])
-            .map((f) => (
-              <Fragment key={f.id}>
-                <dt className="text-[var(--color-muted)]">{f.label}</dt>
-                <dd>{lead.custom_fields[f.id]}</dd>
-              </Fragment>
-            ))}
-
-          <dt className="text-[var(--color-muted)]">Estimated value</dt>
-          <dd>
-            {lead.estimasi_nilai != null
-              ? lead.estimasi_nilai.toLocaleString("id-ID")
-              : "-"}
-          </dd>
-
-          <dt className="text-[var(--color-muted)]">Next step</dt>
-          <dd>{lead.next_step || "-"}</dd>
-
-          <dt className="text-[var(--color-muted)]">Next step due</dt>
-          <dd>
-            {lead.next_step_due ? (
-              (() => {
-                const state = nextStepState(lead.next_step_due);
-                const dueText = new Date(
-                  lead.next_step_due,
-                ).toLocaleDateString("id-ID");
-                if (state === "overdue") {
-                  return (
-                    <span className="text-[var(--color-danger)] font-medium">
-                      {dueText} · overdue
-                    </span>
-                  );
-                }
-                if (state === "today") {
-                  return (
-                    <span className="text-[var(--color-warning)] font-medium">
-                      {dueText} · due today
-                    </span>
-                  );
-                }
-                return dueText;
-              })()
-            ) : (
-              "-"
-            )}
-          </dd>
-
-          <dt className="text-[var(--color-muted)]">Assigned to</dt>
-          <dd>
-            {profiles.find((p) => p.id === lead.assigned_to)
-              ? profileLabel(profiles.find((p) => p.id === lead.assigned_to)!)
-              : "Unassigned"}
-          </dd>
-
-          <dt className="text-[var(--color-muted)]">Status</dt>
-          <dd>
-            <select
-              value={lead.status}
-              onChange={(e) =>
-                handleStatusChange(e.target.value as LeadStatus)
-              }
-              className="border border-[var(--color-border)] rounded-lg text-sm px-2 py-1"
-            >
-              {LEAD_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {leadStatusLabel(s)}
-                </option>
-              ))}
-            </select>
-          </dd>
-
-          {lead.close_reason && (
-            <>
-              <dt className="text-[var(--color-muted)]">
-                {lead.status === "Hilang" ? "Lost reason" : "Won reason"}
-              </dt>
-              <dd>
-                {lead.close_reason}
-                {lead.close_note && (
-                  <span className="text-[var(--color-muted)]"> — {lead.close_note}</span>
+              <LeadClassificationFields
+                values={editForm}
+                onChange={(patch) => setEditForm((f) => ({ ...f, ...patch }))}
+                idPrefix="edit-"
+                inputClassName="field"
+                renderField={(label, htmlFor, control) => (
+                  <EditField id={htmlFor} label={label}>
+                    {control}
+                  </EditField>
                 )}
-              </dd>
-            </>
+              />
+
+              <EditField id="edit-estimasi_nilai" label="Estimated deal value">
+                <CurrencyInput
+                  id="edit-estimasi_nilai"
+                  value={editForm.estimasi_nilai}
+                  onChange={(estimasi_nilai) => setEditForm({ ...editForm, estimasi_nilai })}
+                  className="field"
+                />
+              </EditField>
+
+              <EditField id="edit-catatan" label="Notes / requirements">
+                <textarea
+                  id="edit-catatan"
+                  value={editForm.catatan}
+                  onChange={(e) => setEditForm({ ...editForm, catatan: e.target.value })}
+                  rows={3}
+                  className="field"
+                />
+              </EditField>
+
+              <EditField id="edit-next_step" label="Next step">
+                <input
+                  id="edit-next_step"
+                  value={editForm.next_step}
+                  onChange={(e) => setEditForm({ ...editForm, next_step: e.target.value })}
+                  placeholder="e.g. Send quote, call to confirm schedule"
+                  className="field"
+                />
+              </EditField>
+
+              <EditField id="edit-next_step_due" label="Next step due date">
+                <input
+                  id="edit-next_step_due"
+                  type="date"
+                  value={editForm.next_step_due}
+                  onChange={(e) => setEditForm({ ...editForm, next_step_due: e.target.value })}
+                  className="field"
+                />
+              </EditField>
+
+              <EditField id="edit-assigned_to" label="Assigned to">
+                {currentProfile?.is_admin ? (
+                  <AssigneeSelect
+                    id="edit-assigned_to"
+                    value={editForm.assigned_to || null}
+                    onChange={(assigned_to) =>
+                      setEditForm({ ...editForm, assigned_to: assigned_to ?? "" })
+                    }
+                    profiles={profiles}
+                  />
+                ) : (
+                  <p className="text-sm text-[var(--color-muted)] px-3 py-2 border border-[var(--color-border)] rounded-lg bg-[var(--color-muted-bg)]">
+                    {currentProfile ? profileLabel(currentProfile) : "-"}
+                  </p>
+                )}
+              </EditField>
+
+              <div className="flex gap-2">
+                <button type="submit" disabled={saving} className="btn-primary">
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  disabled={saving}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <dl className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 gap-y-3 text-sm">
+              <DetailRow label="Contact">
+                <span className="font-data">{lead.kontak}</span>
+              </DetailRow>
+              <DetailRow label="Source">{lead.sumber || "-"}</DetailRow>
+              <DetailRow label="Company">{lead.perusahaan || "-"}</DetailRow>
+              <DetailRow label="Job title">{lead.jabatan || "-"}</DetailRow>
+              <DetailRow label="Email">{lead.email || "-"}</DetailRow>
+              <DetailRow label="City/region">{lead.kota || "-"}</DetailRow>
+              <DetailRow label="Product/need">{lead.produk || "-"}</DetailRow>
+
+              {/* Field tambahan buatan admin — cuma yang ada isinya, supaya
+                  daftar tidak penuh "-" untuk field milik business lain. */}
+              {customFields
+                .filter((f) => lead.custom_fields?.[f.id])
+                .map((f) => (
+                  <DetailRow key={f.id} label={f.label}>
+                    {lead.custom_fields[f.id]}
+                  </DetailRow>
+                ))}
+
+              <DetailRow label="Estimated value">
+                <span className="font-data">
+                  {lead.estimasi_nilai != null
+                    ? lead.estimasi_nilai.toLocaleString("id-ID")
+                    : "-"}
+                </span>
+              </DetailRow>
+              <DetailRow label="Next step">{lead.next_step || "-"}</DetailRow>
+              <DetailRow label="Next step due">
+                <NextStepDue due={lead.next_step_due} />
+              </DetailRow>
+              <DetailRow label="Assigned to">
+                {assignee ? profileLabel(assignee) : "Unassigned"}
+              </DetailRow>
+
+              {lead.close_reason && (
+                <DetailRow label={lead.status === "Hilang" ? "Lost reason" : "Won reason"}>
+                  {lead.close_reason}
+                  {lead.close_note && (
+                    <span className="text-[var(--color-muted)]"> — {lead.close_note}</span>
+                  )}
+                </DetailRow>
+              )}
+            </dl>
           )}
-        </dl>
-      )}
-      {closeReasonDialog}
+        </section>
+        {closeReasonDialog}
 
-      {!isEditing && lead.catatan && (
-        <div>
-          <h2 className="font-medium mb-2">Notes / requirements</h2>
-          <pre className="whitespace-pre-wrap text-sm bg-[var(--color-muted-bg)] border border-[var(--color-border)] rounded-lg p-3">
-            {lead.catatan}
-          </pre>
+        <div className="lg:col-span-3 flex flex-col gap-6 min-w-0">
+          {!isEditing && lead.catatan && (
+            <section className="card p-5">
+              <h2 className="card-title mb-3">Notes / requirements</h2>
+              <p className="whitespace-pre-wrap text-sm">{lead.catatan}</p>
+            </section>
+          )}
+
+          <section className="card p-5">
+            <h2 className="card-title mb-3">Timeline</h2>
+            <form onSubmit={handleAddCatatan} className="flex flex-col gap-2 mb-5">
+              <textarea
+                value={catatanBaru}
+                onChange={(e) => setCatatanBaru(e.target.value)}
+                placeholder="Add a new note..."
+                className="field"
+                rows={3}
+              />
+              <button
+                type="submit"
+                disabled={submitting || !catatanBaru.trim()}
+                className="btn-primary self-start"
+              >
+                {submitting ? "Saving..." : "Add Note"}
+              </button>
+            </form>
+
+            <LeadTimeline
+              leadId={leadId}
+              leadName={lead.nama}
+              activities={activities}
+              profiles={profiles}
+            />
+          </section>
         </div>
-      )}
+      </div>
+    </main>
+  );
+}
 
-      <div>
-        <h2 className="font-medium mb-2">Timeline</h2>
-        <form onSubmit={handleAddCatatan} className="flex flex-col gap-2 mb-4">
-          <textarea
-            value={catatanBaru}
-            onChange={(e) => setCatatanBaru(e.target.value)}
-            placeholder="Add a new note..."
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
-            rows={3}
-          />
-          <button
-            type="submit"
-            disabled={submitting || !catatanBaru.trim()}
-            className="self-start bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {submitting ? "Saving..." : "Add Note"}
-          </button>
-        </form>
+// Satu baris di daftar data lead: label abu-abu di kiri, isi di kanan.
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <>
+      <dt className="text-[var(--color-muted)]">{label}</dt>
+      <dd className="break-words">{children}</dd>
+    </>
+  );
+}
 
-        <LeadTimeline
-          leadId={leadId}
-          leadName={lead.nama}
-          activities={activities}
-          profiles={profiles}
-        />
+// Satu isian di form Edit: label tebal di atas, kolom isian di bawahnya.
+function EditField({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// Tanggal jatuh tempo "next step": merah kalau sudah lewat, oranye kalau
+// hari ini, biasa kalau masih nanti.
+function NextStepDue({ due }: { due: string | null }) {
+  if (!due) return <>-</>;
+  const state = nextStepState(due);
+  const dueText = new Date(due).toLocaleDateString("id-ID");
+  if (state === "overdue") {
+    return <span className="text-[var(--color-danger)] font-medium">{dueText} · overdue</span>;
+  }
+  if (state === "today") {
+    return <span className="text-[var(--color-warning)] font-medium">{dueText} · due today</span>;
+  }
+  return <>{dueText}</>;
+}
+
+// Kerangka abu-abu berdenyut selama data lead dimuat.
+function LeadDetailSkeleton() {
+  return (
+    <main className="p-4 sm:p-8 w-full max-w-6xl flex flex-col gap-6">
+      <div className="skeleton h-4 w-28" />
+      <div className="skeleton h-9 w-72" />
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="skeleton h-96 lg:col-span-2" />
+        <div className="skeleton h-96 lg:col-span-3" />
       </div>
     </main>
   );

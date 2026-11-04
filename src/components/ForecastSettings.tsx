@@ -57,7 +57,7 @@ export default function ForecastSettings() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-medium">Forecast</h2>
+      <h2 className="card-title">Forecast</h2>
       <p className="text-xs text-[var(--color-muted)]">
         Chance of closing for each stage. The Dashboard forecast multiplies
         each open deal&apos;s estimated value by its stage&apos;s chance.
@@ -87,7 +87,7 @@ export default function ForecastSettings() {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="self-start bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+          className="btn-primary self-start"
         >
           {saving ? "Saving…" : "Save forecast settings"}
         </button>

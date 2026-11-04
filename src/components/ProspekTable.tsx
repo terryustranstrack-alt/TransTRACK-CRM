@@ -44,6 +44,7 @@ import {
   type LeadDateField,
 } from "@/lib/leadFilters";
 import BusinessFilter from "@/components/BusinessFilter";
+import PageHeader from "@/components/PageHeader";
 import {
   LEAD_STATUSES,
   leadStatusLabel,
@@ -513,92 +514,137 @@ export default function ProspekTable() {
 
   return (
     <main className="p-4 sm:p-8 flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">Prospects</h1>
-          <Link
-            href="/leads/baru"
-            className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-          >
-            + Add Lead
-          </Link>
-        </div>
-        <BusinessFilter
-          value={businessFilter}
-          onChange={setBusinessFilter}
-          businessUnits={businessUnits}
+      {/* Baris 1: judul + tombol aksi. Baris 2: filter Business. Baris 3:
+          satu bar filter (cari, sumber, tanggal, saved views). Dulu semua
+          ini bercampur dalam satu baris panjang yang membingungkan. */}
+      <PageHeader
+        title="Prospects"
+        description={`${filteredLeads.length} of ${leads.length} leads shown`}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => exportLeads(filteredLeads)}
+              title="Exports the prospects currently shown (filters applied)"
+              className="btn-secondary"
+            >
+              Export CSV ({filteredLeads.length})
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="btn-secondary"
+            >
+              {importing ? "Importing..." : "Import CSV"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDuplicates((v) => !v)}
+              className="btn-secondary"
+            >
+              {showDuplicates
+                ? "Back to list"
+                : `Possible duplicates${
+                    duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ""
+                  }`}
+            </button>
+            <Link href="/leads/baru" className="btn-primary">
+              + Add Lead
+            </Link>
+          </>
+        }
+      />
+
+      <BusinessFilter
+        value={businessFilter}
+        onChange={setBusinessFilter}
+        businessUnits={businessUnits}
+      />
+
+      <div className="card p-3 flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, source, company, phone..."
+          className="field w-full sm:w-64"
         />
-        <div className="flex flex-wrap gap-3">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, source, company, phone..."
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm w-64"
-          />
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          aria-label="Filter by source"
+          className="field"
+        >
+          <option value="all">All sources</option>
+          {sumberOptions.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        {currentProfile?.is_admin && brands.length > 1 && (
           <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value)}
+            aria-label="Filter by brand"
+            className="field"
           >
-            <option value="all">All sources</option>
-            {sumberOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
+            <option value="all">All brands</option>
+            {brands.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
               </option>
             ))}
           </select>
-          {currentProfile?.is_admin && brands.length > 1 && (
-            <select
-              value={brandFilter}
-              onChange={(e) => setBrandFilter(e.target.value)}
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="all">All brands</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <label className="flex items-center gap-2 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm">
-            <input
-              type="checkbox"
-              checked={followUpOnly}
-              onChange={(e) => setFollowUpOnly(e.target.checked)}
-            />
-            Needs follow-up
-          </label>
-          <div className="flex flex-wrap items-center gap-2 border border-[var(--color-border)] rounded-lg px-3 py-1 text-sm">
-            <select
-              value={dateField}
-              onChange={(e) => setDateField(e.target.value as LeadDateField)}
-              aria-label="Date to filter by"
-              className="bg-transparent py-1"
-            >
-              <option value="tanggal_masuk">Date added</option>
-              <option value="tanggal_update">Last updated</option>
-            </select>
-            <span className="text-[var(--color-muted)]">from</span>
-            <input
-              type="date"
-              value={dateFrom}
-              max={dateTo || undefined}
-              onChange={(e) => setDateFrom(e.target.value)}
-              aria-label="From date"
-              className="bg-transparent py-1"
-            />
-            <span className="text-[var(--color-muted)]">to</span>
-            <input
-              type="date"
-              value={dateTo}
-              min={dateFrom || undefined}
-              onChange={(e) => setDateTo(e.target.value)}
-              aria-label="To date"
-              className="bg-transparent py-1"
-            />
-          </div>
+        )}
+        <label className="flex items-center gap-2 field">
+          <input
+            type="checkbox"
+            checked={followUpOnly}
+            onChange={(e) => setFollowUpOnly(e.target.checked)}
+          />
+          Needs follow-up
+        </label>
+        <div className="field flex flex-wrap items-center gap-2 py-1">
+          <select
+            value={dateField}
+            onChange={(e) => setDateField(e.target.value as LeadDateField)}
+            aria-label="Date to filter by"
+            className="bg-transparent py-1"
+          >
+            <option value="tanggal_masuk">Date added</option>
+            <option value="tanggal_update">Last updated</option>
+          </select>
+          <span className="text-[var(--color-muted)]">from</span>
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(e) => setDateFrom(e.target.value)}
+            aria-label="From date"
+            className="bg-transparent py-1"
+          />
+          <span className="text-[var(--color-muted)]">to</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => setDateTo(e.target.value)}
+            aria-label="To date"
+            className="bg-transparent py-1"
+          />
+        </div>
+
+        {/* Saved views & hapus filter di ujung kanan bar. */}
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {hasActiveFilters && (
             <button
               type="button"
@@ -608,100 +654,62 @@ export default function ProspekTable() {
               Clear filters
             </button>
           )}
-          <div className="flex items-center gap-2">
-            <select
-              value={activeViewId}
-              onChange={(e) => handleOpenView(e.target.value)}
-              aria-label="Saved views"
-              className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+          <select
+            value={activeViewId}
+            onChange={(e) => handleOpenView(e.target.value)}
+            aria-label="Saved views"
+            className="field"
+          >
+            <option value="">Saved views</option>
+            {savedFilters.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </select>
+          {activeViewId ? (
+            <button
+              type="button"
+              onClick={handleDeleteView}
+              className="text-sm text-[var(--color-muted)] hover:underline"
             >
-              <option value="">Saved views</option>
-              {savedFilters.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-            {activeViewId ? (
+              Delete view
+            </button>
+          ) : savingView ? (
+            <form onSubmit={handleSaveView} className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                placeholder="View name"
+                className="field w-36"
+              />
+              <button
+                type="submit"
+                disabled={!newViewName.trim()}
+                className="btn-primary"
+              >
+                Save
+              </button>
               <button
                 type="button"
-                onClick={handleDeleteView}
+                onClick={() => setSavingView(false)}
                 className="text-sm text-[var(--color-muted)] hover:underline"
               >
-                Delete view
+                Cancel
               </button>
-            ) : savingView ? (
-              <form onSubmit={handleSaveView} className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={newViewName}
-                  onChange={(e) => setNewViewName(e.target.value)}
-                  placeholder="View name"
-                  className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm w-36"
-                />
-                <button
-                  type="submit"
-                  disabled={!newViewName.trim()}
-                  className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-3 py-2 text-sm transition-colors disabled:opacity-50"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSavingView(false)}
-                  className="text-sm text-[var(--color-muted)] hover:underline"
-                >
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={() => setSavingView(true)}
-                  className="text-sm text-[var(--color-muted)] hover:underline"
-                >
-                  Save view
-                </button>
-              )
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => exportLeads(filteredLeads)}
-            title="Exports the prospects currently shown (filters applied)"
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)]"
-          >
-            Export CSV ({filteredLeads.length})
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleImportFile}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)] disabled:opacity-50"
-          >
-            {importing ? "Importing..." : "Import CSV"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowDuplicates((v) => !v)}
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)]"
-          >
-            {showDuplicates
-              ? "Back to list"
-              : `Possible duplicates${
-                  duplicateGroups.length > 0
-                    ? ` (${duplicateGroups.length})`
-                    : ""
-                }`}
-          </button>
+            </form>
+          ) : (
+            hasActiveFilters && (
+              <button
+                type="button"
+                onClick={() => setSavingView(true)}
+                className="text-sm text-[var(--color-muted)] hover:underline"
+              >
+                Save view
+              </button>
+            )
+          )}
         </div>
       </div>
 
@@ -710,7 +718,7 @@ export default function ProspekTable() {
       )}
 
       {!showDuplicates && selectedLeads.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-muted-bg)] px-4 py-2 text-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-brand)] bg-[var(--color-surface)] px-4 py-2 text-sm shadow-sm">
           <span className="font-medium">{selectedLeads.length} selected</span>
           <select
             value=""

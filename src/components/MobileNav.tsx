@@ -1,65 +1,18 @@
 "use client";
 
-import { useState, type SVGProps } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useInboxUnread } from "@/components/InboxUnreadProvider";
 import PushToggle from "@/components/PushToggle";
-
-// Ikon garis sederhana (tanpa library ikon — lihat aturan proyek #4).
-// Semua 24x24, mewarisi warna dari `currentColor`.
-function IconDashboard(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="3" width="7" height="7" />
-      <rect x="14" y="3" width="7" height="7" />
-      <rect x="14" y="14" width="7" height="7" />
-      <rect x="3" y="14" width="7" height="7" />
-    </svg>
-  );
-}
-function IconBoard(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="4" width="5" height="16" />
-      <rect x="10" y="4" width="5" height="11" />
-      <rect x="17" y="4" width="4" height="7" />
-    </svg>
-  );
-}
-function IconProspects(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="8" y1="6" x2="21" y2="6" />
-      <line x1="8" y1="12" x2="21" y2="12" />
-      <line x1="8" y1="18" x2="21" y2="18" />
-      <line x1="3" y1="6" x2="3.01" y2="6" />
-      <line x1="3" y1="12" x2="3.01" y2="12" />
-      <line x1="3" y1="18" x2="3.01" y2="18" />
-    </svg>
-  );
-}
-function IconInbox(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-function IconMore(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="12" cy="5" r="1" />
-      <circle cx="12" cy="19" r="1" />
-    </svg>
-  );
-}
+import {
+  IconBoard,
+  IconDashboard,
+  IconInbox,
+  IconMore,
+  IconProspects,
+  isNavActive,
+} from "@/components/navIcons";
 
 const TABS = [
   { href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
@@ -76,19 +29,17 @@ const ADMIN_MORE_LINKS = [
   { href: "/settings", label: "Settings" },
 ];
 
-// Bottom tab bar untuk layar telepon (<640px). Di layar lebih besar
-// (`sm:` ke atas) disembunyikan — navigasi pakai NavMenu di header.
+// Bottom tab bar untuk layar telepon (<768px). Di layar lebih besar
+// (`md:` ke atas) disembunyikan — navigasi pakai Sidebar di kiri.
 export default function MobileNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const { totalUnread } = useInboxUnread();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  function isActive(href: string) {
-    return href === "/" ? pathname === "/" : pathname.startsWith(href);
-  }
+  const isActive = (href: string) => isNavActive(pathname, href);
 
   return (
-    <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-[var(--color-border)] bg-[var(--color-surface)] pb-[env(safe-area-inset-bottom)]">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-[var(--color-border)] bg-[var(--color-surface)] pb-[env(safe-area-inset-bottom)]">
       {moreOpen && (
         <>
           {/* Lapisan tembus pandang untuk menutup menu saat disentuh di luar. */}

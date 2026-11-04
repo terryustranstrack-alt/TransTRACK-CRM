@@ -80,14 +80,14 @@ export function CloseReasonDialog({
           onChange={(e) => setNote(e.target.value)}
           placeholder="Extra detail (optional)"
           rows={2}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+          className="field"
         />
 
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)]"
+            className="btn-secondary"
           >
             Cancel
           </button>

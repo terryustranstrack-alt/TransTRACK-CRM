@@ -202,7 +202,7 @@ export default function MergeLeads({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name or number…"
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+            className="field"
           />
           <ul className="flex flex-col gap-1">
             {searchResults.map((lead) => (
@@ -337,7 +337,7 @@ export default function MergeLeads({
               type="button"
               onClick={handleMerge}
               disabled={merging}
-              className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+              className="btn-primary"
             >
               {merging ? "Merging…" : "Merge leads"}
             </button>

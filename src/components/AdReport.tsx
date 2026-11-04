@@ -133,10 +133,10 @@ export default function AdReport({
   const nameOf = (id: string | null) => businessUnits.find((b) => b.id === id)?.name;
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+    <div className="card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div>
-          <h2 className="font-medium">Ad performance</h2>
+          <h2 className="card-title">Ad performance</h2>
           <p className="text-xs text-[var(--color-muted)]">
             Meta Click-to-WhatsApp ads — chats, leads and deals per ad
             {showSpend ? ", with ad spend from Meta" : ""}

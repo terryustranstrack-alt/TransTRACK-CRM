@@ -157,10 +157,17 @@ function LeadColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-shrink-0 w-64 rounded-lg snap-start ${isOver ? "bg-[var(--color-muted-bg)]" : ""}`}
+      // Tiap kolom = jalur abu-abu muda; saat kartu diseret di atasnya,
+      // bingkainya menebal supaya jelas kartu akan jatuh di kolom ini.
+      className={`flex-shrink-0 w-72 rounded-xl p-3 snap-start bg-[var(--color-muted-bg)] border transition-colors ${
+        isOver ? "border-[var(--color-brand)]" : "border-transparent"
+      }`}
     >
-      <h2 className="font-semibold mb-3">
-        {leadStatusLabel(status)} ({leads.length})
+      <h2 className="flex items-center justify-between gap-2 px-1 mb-3 text-sm font-semibold">
+        <span>{leadStatusLabel(status)}</span>
+        <span className="font-data text-xs font-medium rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] px-2 py-0.5">
+          {leads.length}
+        </span>
       </h2>
       <div className="flex flex-col gap-3 min-h-8">
         {leads.map((lead) => (
@@ -298,24 +305,24 @@ export default function LeadBoard() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:p-8">
+    <div className="flex flex-col gap-4 min-w-0">
       <BusinessFilter
         value={businessFilter}
         onChange={setBusinessFilter}
         businessUnits={businessUnits}
       />
-      <div className="flex flex-wrap gap-3">
+      <div className="card p-3 flex flex-wrap gap-3">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name or contact..."
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm w-64"
+          className="field w-full sm:w-64"
         />
         <select
           value={sumberFilter}
           onChange={(e) => setSumberFilter(e.target.value)}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+          className="field"
         >
           {daftarSumber.map((s) => (
             <option key={s} value={s}>
@@ -326,7 +333,7 @@ export default function LeadBoard() {
         <select
           value={assigneeFilter}
           onChange={(e) => setAssigneeFilter(e.target.value)}
-          className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+          className="field"
         >
           <option value={SEMUA_ASSIGNEE}>{SEMUA_ASSIGNEE}</option>
           {profiles.map((p) => (
@@ -335,7 +342,7 @@ export default function LeadBoard() {
             </option>
           ))}
         </select>
-        <label className="flex items-center gap-2 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm">
+        <label className="flex items-center gap-2 field">
           <input
             type="checkbox"
             checked={followUpOnly}
@@ -347,7 +354,7 @@ export default function LeadBoard() {
           <select
             value={brandFilter}
             onChange={(e) => setBrandFilter(e.target.value)}
-            className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
+            className="field"
           >
             <option value="all">All brands</option>
             {brands.map((b) => (

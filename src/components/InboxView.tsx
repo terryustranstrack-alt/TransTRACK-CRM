@@ -352,7 +352,9 @@ export default function InboxView() {
   }
 
   return (
-    <main className="flex flex-1 min-h-0">
+    // md:h-dvh — di desktop inbox mengisi pas satu layar di samping menu,
+    // jadi daftar chat & isi chat masing-masing bisa di-scroll sendiri.
+    <main className="flex flex-1 min-h-0 md:h-dvh">
       {/* Daftar percakapan: layar penuh di telepon, sembunyi saat sebuah
           percakapan dibuka; kolom tetap 320px di desktop (`lg:`). */}
       <aside
@@ -595,7 +597,7 @@ export default function InboxView() {
                     type="button"
                     onClick={handleClaim}
                     disabled={isPending}
-                    className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-1.5 hover:bg-[var(--color-muted-bg)] disabled:opacity-50"
+                    className="btn-secondary"
                   >
                     Claim
                   </button>
@@ -605,7 +607,7 @@ export default function InboxView() {
                     type="button"
                     onClick={() => handleSetStatus("open")}
                     disabled={isPending}
-                    className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-1.5 hover:bg-[var(--color-muted-bg)] disabled:opacity-50"
+                    className="btn-secondary"
                   >
                     Reopen
                   </button>
@@ -614,7 +616,7 @@ export default function InboxView() {
                     type="button"
                     onClick={() => handleSetStatus("resolved")}
                     disabled={isPending}
-                    className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-1.5 hover:bg-[var(--color-muted-bg)] disabled:opacity-50"
+                    className="btn-secondary"
                   >
                     Mark resolved
                   </button>
@@ -709,7 +711,7 @@ export default function InboxView() {
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isPending || uploading}
                     title="Attach a file"
-                    className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)] disabled:opacity-50"
+                    className="btn-secondary"
                   >
                     {uploading ? "…" : "📎"}
                   </button>
@@ -722,7 +724,7 @@ export default function InboxView() {
                     type="button"
                     onClick={() => setShowTemplatePicker((v) => !v)}
                     title="Use a template"
-                    className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm hover:bg-[var(--color-muted-bg)]"
+                    className="btn-secondary"
                   >
                     Tmpl
                   </button>
@@ -751,7 +753,7 @@ export default function InboxView() {
                   <button
                     type="submit"
                     disabled={isPending || !draftText.trim()}
-                    className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                    className="btn-primary"
                   >
                     Send
                   </button>

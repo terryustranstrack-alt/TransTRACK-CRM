@@ -36,7 +36,7 @@ export default function LoginPage() {
               name="email"
               type="email"
               required
-              className="rounded-lg border border-[var(--color-border)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+              className="field"
             />
           </div>
 
@@ -49,7 +49,7 @@ export default function LoginPage() {
               name="password"
               type="password"
               required
-              className="rounded-lg border border-[var(--color-border)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
+              className="field"
             />
           </div>
 

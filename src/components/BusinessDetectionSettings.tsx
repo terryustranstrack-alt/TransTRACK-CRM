@@ -58,7 +58,7 @@ export default function BusinessDetectionSettings() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-medium">Business detection</h2>
+      <h2 className="card-title">Business detection</h2>
       <p className="text-xs text-[var(--color-muted)]">
         Every incoming WhatsApp chat is checked automatically to see whether
         it is for TransTRACK or TransTRACK Academy, in this order:{" "}

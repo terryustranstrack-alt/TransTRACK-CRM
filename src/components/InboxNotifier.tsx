@@ -3,7 +3,7 @@
 import { useInboxUnread } from "@/components/InboxUnreadProvider";
 
 // Kontrol kecil di header: minta izin notifikasi desktop (sekali) & toggle
-// bisukan suara. Angka belum-dibaca sendiri tampil di NavMenu.
+// bisukan suara. Angka belum-dibaca sendiri tampil di Sidebar.
 export default function InboxNotifier() {
   const {
     muted,
@@ -13,7 +13,7 @@ export default function InboxNotifier() {
   } = useInboxUnread();
 
   return (
-    <div className="flex items-center gap-3 text-xs text-[var(--color-muted)]">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-muted)]">
       {notificationPermission === "default" && (
         <button
           type="button"

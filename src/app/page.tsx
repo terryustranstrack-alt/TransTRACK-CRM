@@ -1,21 +1,22 @@
 import Link from "next/link";
 import LeadBoard from "@/components/LeadBoard";
+import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
 // Halaman utama ("/"): papan Kanban leads (LeadBoard) + tombol tambah lead.
 export default function Home() {
   return (
-    <main className="flex flex-col flex-1">
-      <div className="flex items-center justify-between px-4 pt-4 sm:px-8 sm:pt-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Lead Pipeline</h1>
-        <Link
-          href="/leads/baru"
-          className="bg-brand text-on-brand hover:bg-[var(--color-brand-hover)] rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-        >
-          + Add Lead
-        </Link>
-      </div>
+    <main className="flex flex-col flex-1 gap-6 p-4 sm:p-8 min-w-0">
+      <PageHeader
+        title="Lead Pipeline"
+        description="Drag a card to another column to change its status"
+        actions={
+          <Link href="/leads/baru" className="btn-primary">
+            + Add Lead
+          </Link>
+        }
+      />
       <LeadBoard />
     </main>
   );

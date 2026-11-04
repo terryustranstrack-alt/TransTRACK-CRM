@@ -28,10 +28,10 @@ export default function SourceReport({ leads }: { leads: Lead[] }) {
   );
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+    <div className="card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="font-medium">Source performance</h2>
+          <h2 className="card-title">Source performance</h2>
           <p className="text-xs text-[var(--color-muted)]">
             Which lead sources turn into deals
           </p>
