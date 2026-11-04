@@ -93,6 +93,32 @@ async function pickWelcomeMessage(
   return botConfig.welcome_message.trim();
 }
 
+// Instruksi (system prompt) & FAQ yang dipakai AI untuk membalas chat ini.
+// Kalau chat sudah dikenali milik business tertentu (iklan / kata kunci /
+// tebakan AI) dan business itu punya instruksi/FAQ sendiri, pakai itu —
+// mis. chat Academy dijawab soal kelas, bukan soal GPS armada. Bagian yang
+// dikosongkan di business itu tetap memakai versi umum.
+async function pickBotInstructions(
+  admin: AdminClient,
+  conv: ConversationRow,
+  botConfig: BotConfig,
+): Promise<{ systemPrompt: string; faq: string }> {
+  const general = { systemPrompt: botConfig.system_prompt, faq: botConfig.faq };
+  if (!conv.business_unit_id) return general;
+
+  const { data: unit } = await admin
+    .from("business_units")
+    .select("bot_prompt, bot_faq")
+    .eq("id", conv.business_unit_id)
+    .single();
+  const ownPrompt = (unit?.bot_prompt as string | undefined)?.trim();
+  const ownFaq = (unit?.bot_faq as string | undefined)?.trim();
+  return {
+    systemPrompt: ownPrompt || general.systemPrompt,
+    faq: ownFaq || general.faq,
+  };
+}
+
 // Coba jalankan chatbot untuk sebuah pesan masuk. Dipanggil lewat after() di
 // webhook — jadi tidak menahan respons 200 ke Meta. Semua akses DB pakai
 // service-role client (tidak ada sesi user di konteks webhook).
@@ -154,9 +180,10 @@ export async function maybeRunBot(
       return;
     }
 
+    const { systemPrompt, faq } = await pickBotInstructions(admin, conv, botConfig);
     const { text, handoff } = await generateBotReply({
-      systemPrompt: botConfig.system_prompt,
-      faq: botConfig.faq,
+      systemPrompt,
+      faq,
       history: toHistory(messages.slice(-10)),
     });
     if (handoff || !text) return;

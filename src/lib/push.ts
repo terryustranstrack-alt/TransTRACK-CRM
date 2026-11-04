@@ -88,7 +88,8 @@ export async function notifyInboundMessage(
   await sendPushToProfiles(admin, recipients, {
     title: `💬 ${chat.senderName}`,
     body: chat.preview,
-    url: "/inbox",
+    // ?c=<id> → inbox langsung membuka chat ini saat notifikasi disentuh.
+    url: `/inbox?c=${chat.conversationId}`,
     tag: `chat-${chat.conversationId}`,
   });
 }

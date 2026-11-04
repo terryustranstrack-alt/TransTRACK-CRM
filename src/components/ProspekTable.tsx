@@ -162,7 +162,7 @@ export default function ProspekTable() {
   const [showDuplicates, setShowDuplicates] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sumberOptions = useSumberOptions();
-  const { businessUnits, products } = useLeadFieldSettings();
+  const { businessUnits, products, customFields } = useLeadFieldSettings();
   const businessNameById = useMemo(
     () => new Map(businessUnits.map((b) => [b.id, b.name])),
     [businessUnits],
@@ -363,7 +363,11 @@ export default function ProspekTable() {
   // terlihat dengan filter sekarang) dan "Export selected".
   function exportLeads(rows: Lead[]) {
     const brandNames = Object.fromEntries(brands.map((b) => [b.id, b.name]));
-    downloadCsv(`leads-${Date.now()}.csv`, leadsToCsv(rows, brandNames));
+    const businessNames = Object.fromEntries(businessNameById);
+    downloadCsv(
+      `leads-${Date.now()}.csv`,
+      leadsToCsv(rows, { brandNames, businessNames, customFields }),
+    );
   }
 
   // Grup lead yang nomor/email-nya sama — untuk tampilan "Possible duplicates".

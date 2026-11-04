@@ -12,6 +12,7 @@ import {
 import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
 import BusinessBadge from "@/components/BusinessBadge";
 import BusinessFilter from "@/components/BusinessFilter";
+import { getAdSpends, type AdSpendResult } from "@/app/dashboard/actions";
 import type { AdSource, Lead } from "@/lib/types";
 
 const supabase = createClient();
@@ -20,6 +21,22 @@ type ChatRow = { ad_source_id: string; created_at: string; brand_id: string | nu
 
 function formatRupiah(n: number) {
   return n.toLocaleString("id-ID", { style: "currency", currency: "IDR" });
+}
+
+// Biaya per chat / per lead — "—" kalau tidak diketahui.
+function formatCost(n: number | null) {
+  return n == null ? "—" : formatRupiah(Math.round(n));
+}
+
+// Rentang tanggal untuk menanyakan biaya ke Meta. Kalau "From" kosong,
+// mulai dari hari iklan paling awal terlihat; kalau "To" kosong, sampai
+// hari ini — supaya sama dengan "semua waktu" di tabel.
+function spendDateRange(ads: AdSource[], from: string, to: string) {
+  const earliest = ads
+    .map((ad) => toLocalDateInputValue(ad.first_seen_at))
+    .sort()[0];
+  const today = toLocalDateInputValue(new Date().toISOString());
+  return { since: from || earliest || today, until: to || today };
 }
 
 // Chat masuk di rentang tanggal yang dipilih? (kosong = tidak dibatasi)
@@ -63,6 +80,37 @@ export default function AdReport({
     load();
   }, []);
 
+  // Biaya iklan dari Meta untuk rentang tanggal yang dipilih. Diambil ulang
+  // setiap tanggal berubah. Kalau Meta belum dihubungkan (token belum
+  // diisi), kolom biaya tidak ditampilkan.
+  const [spendResult, setSpendResult] = useState<AdSpendResult | null>(null);
+  useEffect(() => {
+    if (ads.length === 0) return;
+    const { since, until } = spendDateRange(ads, dateFrom, dateTo);
+    let cancelled = false;
+    getAdSpends(ads.map((ad) => ad.source_id), since, until)
+      .then((result) => {
+        if (!cancelled) setSpendResult(result);
+      })
+      .catch(() => {
+        if (!cancelled) setSpendResult({ configured: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ads, dateFrom, dateTo]);
+
+  const showSpend = spendResult?.configured === true;
+  const spendBySourceId = useMemo(
+    () =>
+      spendResult?.configured
+        ? Object.fromEntries(
+            Object.entries(spendResult.spends).map(([id, s]) => [id, s.spend]),
+          )
+        : {},
+    [spendResult],
+  );
+
   const rows = useMemo(() => {
     const adsInBusiness = ads.filter((ad) =>
       businessFilter === BUSINESS_FILTER_ALL
@@ -78,8 +126,8 @@ export default function AdReport({
     const leadsInRange = leads.filter((l) =>
       matchesDateRange(l, "tanggal_masuk", dateFrom, dateTo),
     );
-    return buildAdReport(adsInBusiness, leadsInRange, chatAdIds);
-  }, [ads, chats, leads, businessFilter, brandFilter, dateFrom, dateTo]);
+    return buildAdReport(adsInBusiness, leadsInRange, chatAdIds, spendBySourceId);
+  }, [ads, chats, leads, businessFilter, brandFilter, dateFrom, dateTo, spendBySourceId]);
 
   const total = totalAdReport(rows);
   const nameOf = (id: string | null) => businessUnits.find((b) => b.id === id)?.name;
@@ -91,6 +139,7 @@ export default function AdReport({
           <h2 className="font-medium">Ad performance</h2>
           <p className="text-xs text-[var(--color-muted)]">
             Meta Click-to-WhatsApp ads — chats, leads and deals per ad
+            {showSpend ? ", with ad spend from Meta" : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -134,8 +183,21 @@ export default function AdReport({
             <thead>
               <tr className="text-left text-xs text-[var(--color-muted)] border-b border-[var(--color-border)]">
                 <th className="py-2 pr-3 font-medium">Ad</th>
+                {showSpend && (
+                  <th className="py-2 pr-3 font-medium text-right" title="Amount spent on this ad in Meta for the selected period">
+                    Spend
+                  </th>
+                )}
                 <th className="py-2 pr-3 font-medium text-right">Chats</th>
+                {showSpend && (
+                  <th className="py-2 pr-3 font-medium text-right">Cost / chat</th>
+                )}
                 <th className="py-2 pr-3 font-medium text-right">Leads</th>
+                {showSpend && (
+                  <th className="py-2 pr-3 font-medium text-right" title="Cost per lead">
+                    Cost / lead
+                  </th>
+                )}
                 <th className="py-2 pr-3 font-medium text-right" title="Share of chats that became a lead">
                   Chat → lead
                 </th>
@@ -166,8 +228,17 @@ export default function AdReport({
                       </span>
                     </div>
                   </td>
+                  {showSpend && (
+                    <td className="py-2 pr-3 text-right whitespace-nowrap">{formatCost(row.spend)}</td>
+                  )}
                   <td className="py-2 pr-3 text-right">{row.chats}</td>
+                  {showSpend && (
+                    <td className="py-2 pr-3 text-right whitespace-nowrap">{formatCost(row.costPerChat)}</td>
+                  )}
                   <td className="py-2 pr-3 text-right">{row.leads}</td>
+                  {showSpend && (
+                    <td className="py-2 pr-3 text-right whitespace-nowrap">{formatCost(row.costPerLead)}</td>
+                  )}
                   <td className="py-2 pr-3 text-right">{row.chatToLeadRate.toFixed(0)}%</td>
                   <td className="py-2 pr-3 text-right text-[var(--color-success)]">{row.won}</td>
                   <td className="py-2 pr-3 text-right text-[var(--color-danger)]">{row.lost}</td>
@@ -180,8 +251,17 @@ export default function AdReport({
               ))}
               <tr className="font-semibold">
                 <td className="py-2 pr-3 font-sans">Total ({rows.length} ads)</td>
+                {showSpend && (
+                  <td className="py-2 pr-3 text-right whitespace-nowrap">{formatCost(total.spend)}</td>
+                )}
                 <td className="py-2 pr-3 text-right">{total.chats}</td>
+                {showSpend && (
+                  <td className="py-2 pr-3 text-right whitespace-nowrap">{formatCost(total.costPerChat)}</td>
+                )}
                 <td className="py-2 pr-3 text-right">{total.leads}</td>
+                {showSpend && (
+                  <td className="py-2 pr-3 text-right whitespace-nowrap">{formatCost(total.costPerLead)}</td>
+                )}
                 <td className="py-2 pr-3 text-right">{total.chatToLeadRate.toFixed(0)}%</td>
                 <td className="py-2 pr-3 text-right text-[var(--color-success)]">{total.won}</td>
                 <td className="py-2 pr-3 text-right text-[var(--color-danger)]">{total.lost}</td>

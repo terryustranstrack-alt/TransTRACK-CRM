@@ -2,24 +2,41 @@ import {
   leadStatusFromLabel,
   leadStatusLabel,
   type Lead,
+  type LeadCustomField,
   type LeadStatus,
 } from "@/lib/types";
+
+// Data pendukung untuk mengisi kolom yang butuh nama (bukan id mentah):
+// peta id->nama brand & business, plus daftar field tambahan buatan admin
+// (tiap field jadi satu kolom sendiri di ujung file).
+export type CsvLookups = {
+  brandNames: Record<string, string>;
+  businessNames: Record<string, string>;
+  customFields: LeadCustomField[];
+};
 
 // Daftar kolom CSV untuk fitur Export CSV di ProspekTable: header yang
 // muncul di file, dan cara mengambil nilainya dari satu baris Lead. Kolom
 // "Brand" butuh nama brand (bukan cuma id), jadi diberi peta id->nama lewat
 // leadsToCsv() — lihat komentar di sana.
-const KOLOM: {
+type CsvColumn = {
   header: string;
-  value: (lead: Lead, brandNames: Record<string, string>) => string;
-}[] = [
+  value: (lead: Lead, lookups: CsvLookups) => string;
+};
+
+const KOLOM: CsvColumn[] = [
   { header: "Name", value: (lead) => lead.nama },
   { header: "Contact", value: (lead) => lead.kontak },
   { header: "Source", value: (lead) => lead.sumber ?? "" },
   {
     header: "Brand",
-    value: (lead, brandNames) =>
+    value: (lead, { brandNames }) =>
       (lead.brand_id && brandNames[lead.brand_id]) || "",
+  },
+  {
+    header: "Business",
+    value: (lead, { businessNames }) =>
+      (lead.business_unit_id && businessNames[lead.business_unit_id]) || "",
   },
   { header: "Company", value: (lead) => lead.perusahaan ?? "" },
   { header: "Job Title", value: (lead) => lead.jabatan ?? "" },
@@ -61,16 +78,22 @@ function escapeCsvField(field: string): string {
   return field;
 }
 
+// Satu kolom per field tambahan buatan admin. Judul kolom = label field;
+// isinya diambil dari leads.custom_fields (kosong kalau belum diisi).
+function customFieldColumns(fields: LeadCustomField[]): CsvColumn[] {
+  return fields.map((field) => ({
+    header: field.label,
+    value: (lead) => lead.custom_fields?.[field.id] ?? "",
+  }));
+}
+
 // Ubah daftar lead jadi teks CSV siap didownload (dipakai tombol Export CSV).
-// `brandNames` = peta brand id -> nama brand (dari useBrands() di pemanggil),
-// dipakai cuma untuk mengisi kolom "Brand" dengan nama, bukan id mentah.
-export function leadsToCsv(
-  leads: Lead[],
-  brandNames: Record<string, string> = {},
-): string {
-  const header = KOLOM.map((k) => escapeCsvField(k.header)).join(",");
+// `lookups` dipakai untuk mengisi nama brand/business dan kolom field tambahan.
+export function leadsToCsv(leads: Lead[], lookups: CsvLookups): string {
+  const columns = [...KOLOM, ...customFieldColumns(lookups.customFields)];
+  const header = columns.map((k) => escapeCsvField(k.header)).join(",");
   const rows = leads.map((lead) =>
-    KOLOM.map((k) => escapeCsvField(k.value(lead, brandNames))).join(","),
+    columns.map((k) => escapeCsvField(k.value(lead, lookups))).join(","),
   );
   return [header, ...rows].join("\n");
 }

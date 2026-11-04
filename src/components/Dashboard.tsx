@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { groupDuplicates } from "@/lib/duplicates";
+import { BUSINESS_FILTER_ALL, matchesBusiness } from "@/lib/leadFilters";
 import SourceReport from "@/components/SourceReport";
 import AdReport from "@/components/AdReport";
 import ForecastCard from "@/components/ForecastCard";
@@ -21,10 +22,14 @@ function formatRupiah(n: number) {
 // minggu ini, nilai closing, dan grafik batang distribusi lead per status.
 // `brandFilter` ("all" atau id sebuah brand) datang dari DashboardView di
 // atasnya — dashboard bisa dipersempit ke satu brand (nomor WhatsApp) saja.
+// `businessFilter` (TransTRACK / Academy / tanpa business) juga dari
+// DashboardView — angka-angka di bawah hanya menghitung lead business itu.
 export default function Dashboard({
   brandFilter = "all",
+  businessFilter = BUSINESS_FILTER_ALL,
 }: {
   brandFilter?: string;
+  businessFilter?: string;
 }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,10 +51,11 @@ export default function Dashboard({
   }, []);
 
   const stats = useMemo(() => {
-    const leadsInBrand =
-      brandFilter === "all"
-        ? leads
-        : leads.filter((lead) => lead.brand_id === brandFilter);
+    const leadsInBrand = leads.filter(
+      (lead) =>
+        (brandFilter === "all" || lead.brand_id === brandFilter) &&
+        matchesBusiness(lead, businessFilter),
+    );
     const totalLeads = leadsInBrand.length;
     // Jumlah lead + total estimasi nilainya, dikelompokkan per status —
     // dipakai untuk grafik batang "Distribusi Pipeline".
@@ -110,7 +116,7 @@ export default function Dashboard({
       followUpLeads,
       duplicateGroups,
     };
-  }, [leads, now, brandFilter]);
+  }, [leads, now, brandFilter, businessFilter]);
 
   if (loading) {
     return <p className="p-8 text-sm text-[var(--color-muted)]">Loading dashboard…</p>;

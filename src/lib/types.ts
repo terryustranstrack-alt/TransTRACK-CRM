@@ -87,6 +87,9 @@ export type BusinessUnit = {
   name: string;
   // Pesan sambutan chatbot khusus business ini ("" = pakai pesan umum)
   welcome_message: string;
+  // Instruksi & FAQ chatbot khusus business ini ("" = pakai yang umum)
+  bot_prompt: string;
+  bot_faq: string;
   created_at: string;
 };
 

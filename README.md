@@ -44,6 +44,15 @@ melarang balasan teks bebas (harus pakai message template berbayar/
 approved) — versi ini belum mendukung kirim template, jadi balasan lewat
 Inbox cuma jalan selama jendela 24 jam itu masih terbuka.
 
+## Biaya iklan Meta (Dashboard > Ad performance)
+
+Kolom Spend / Cost per chat / Cost per lead muncul setelah env
+`META_ADS_ACCESS_TOKEN` diisi (lokal `.env.local` + Vercel production).
+Token = System User token dengan izin **`ads_read`**, dan System User itu
+harus diberi akses ke akun iklan TransTRACK **dan** TransTRACK Academy
+(Business Settings > Users > System users > Assign assets > Ad accounts).
+Iklan dari akun yang tidak bisa diakses token tampil dengan biaya "—".
+
 ## Getting Started
 
 First, run the development server:

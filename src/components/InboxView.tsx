@@ -176,6 +176,14 @@ export default function InboxView() {
     loadAdHeadlines();
   }, []);
 
+  // Dibuka dari notifikasi push (/inbox?c=<id>): langsung pilih chat itu.
+  // Dibaca dari URL sekali saat halaman dibuka.
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("c");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (fromUrl) setSelectedConversationId(fromUrl);
+  }, []);
+
   // Business sebuah chat: pakai isian di lead kalau ada (sudah dicek
   // manusia), kalau belum pakai hasil deteksi otomatis chat itu.
   function businessNameFor(conversation: Conversation, lead: Lead | null | undefined) {
