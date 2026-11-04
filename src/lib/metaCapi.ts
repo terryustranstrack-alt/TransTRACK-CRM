@@ -24,6 +24,7 @@ export type CapiLead = {
   kota: string | null;
   status: LeadStatus;
   estimasi_nilai: number | null;
+  ctwa_clid?: string | null; // kode klik iklan WhatsApp (ada kalau lead dari iklan)
 };
 
 // Nilai deal untuk dikirim ke Meta: hanya saat lead Won ("Closing") dan
@@ -93,17 +94,15 @@ export function buildCrmEvent(lead: CapiLead) {
   };
 }
 
-// Kirim satu event ke dataset Meta. Return pesan error kalau ditolak
+// Kirim satu event ke sebuah dataset Meta. Return pesan error kalau ditolak
 // (untuk dicatat di log), null kalau berhasil. META_CAPI_TEST_EVENT_CODE
 // (opsional) membuat event muncul di tab "Test events" saja — untuk uji coba.
-export async function sendCrmEvent(
-  event: ReturnType<typeof buildCrmEvent>,
+async function postEvent(
+  datasetId: string,
+  accessToken: string,
+  event: object,
 ): Promise<string | null> {
-  const datasetId = process.env.META_CAPI_DATASET_ID;
-  const body: Record<string, unknown> = {
-    data: [event],
-    access_token: process.env.META_CAPI_ACCESS_TOKEN,
-  };
+  const body: Record<string, unknown> = { data: [event], access_token: accessToken };
   if (process.env.META_CAPI_TEST_EVENT_CODE) {
     body.test_event_code = process.env.META_CAPI_TEST_EVENT_CODE;
   }
@@ -117,4 +116,67 @@ export async function sendCrmEvent(
   );
   if (res.ok) return null;
   return `Meta ${res.status}: ${await res.text()}`;
+}
+
+// Kirim event CRM (semua lead TransTRACK) ke dataset CRM.
+export function sendCrmEvent(event: ReturnType<typeof buildCrmEvent>): Promise<string | null> {
+  return postEvent(
+    process.env.META_CAPI_DATASET_ID ?? "",
+    process.env.META_CAPI_ACCESS_TOKEN ?? "",
+    event,
+  );
+}
+
+// ── Event khusus iklan WhatsApp (Conversions API for Business Messaging) ──
+// Untuk lead dari iklan Click-to-WhatsApp, Meta punya jalur sendiri yang
+// mencocokkan lewat kode klik iklan (ctwa_clid) — pasti tepat, tidak perlu
+// menebak dari nomor HP. Event ini yang dipakai Meta untuk optimasi kampanye
+// WhatsApp ke "lead berkualitas" atau "pembelian".
+
+// Tahap CRM → nama event standar Meta untuk WhatsApp. Tahap lain
+// (Contacted, Negotiation, Lost) tidak punya padanan, jadi tidak dikirim.
+const WHATSAPP_EVENT_BY_STATUS: Partial<Record<LeadStatus, string>> = {
+  Baru: "LeadSubmitted",
+  Tertarik: "QualifiedLead",
+  Closing: "Purchase",
+};
+
+// Aktif kalau dataset WhatsApp & ID akun WhatsApp Business sudah diisi.
+// Token: pakai token khusus kalau ada, kalau tidak pakai token WhatsApp.
+function whatsappCapiConfig() {
+  const datasetId = process.env.META_CAPI_WA_DATASET_ID;
+  const wabaId = process.env.WHATSAPP_WABA_ID;
+  const token = process.env.META_CAPI_WA_ACCESS_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
+  return datasetId && wabaId && token ? { datasetId, wabaId, token } : null;
+}
+
+// Susun event WhatsApp untuk lead ini, atau null kalau tidak perlu dikirim
+// (bukan dari iklan, tahapnya tidak dipetakan, atau belum dikonfigurasi).
+export function buildWhatsappEvent(lead: CapiLead) {
+  const config = whatsappCapiConfig();
+  const eventName = WHATSAPP_EVENT_BY_STATUS[lead.status];
+  if (!config || !eventName || !lead.ctwa_clid) return null;
+  return {
+    event_name: eventName,
+    event_time: Math.floor(Date.now() / 1000),
+    event_id: `${lead.id}:wa:${lead.status}`,
+    action_source: "business_messaging",
+    messaging_channel: "whatsapp",
+    user_data: {
+      whatsapp_business_account_id: config.wabaId,
+      ctwa_clid: lead.ctwa_clid,
+    },
+    custom_data: {
+      ...wonValue(lead),
+    },
+  };
+}
+
+// Kirim event WhatsApp ke dataset yang terhubung dengan akun WhatsApp Business.
+export function sendWhatsappEvent(
+  event: NonNullable<ReturnType<typeof buildWhatsappEvent>>,
+): Promise<string | null> {
+  const config = whatsappCapiConfig();
+  if (!config) return Promise.resolve("WhatsApp CAPI not configured");
+  return postEvent(config.datasetId, config.token, event);
 }

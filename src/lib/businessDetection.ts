@@ -71,6 +71,38 @@ export async function recordAdReferral(
   return (data as AdSource) ?? null;
 }
 
+// Simpan kode klik iklan (ctwa_clid) di chat — selalu yang TERBARU, karena
+// orang bisa klik iklan lagi dan Meta mencocokkan ke klik terakhir.
+// Sengaja dipisah dari penyimpanan iklan di atas: kalau kolomnya belum ada
+// (migration 0031 belum dijalankan), cuma bagian ini yang gagal diam-diam.
+async function saveCtwaClid(
+  admin: AdminClient,
+  conversationId: string,
+  ctwaClid: string | undefined,
+): Promise<void> {
+  if (!ctwaClid) return;
+  await admin.from("conversations").update({ ctwa_clid: ctwaClid }).eq("id", conversationId);
+}
+
+// Salin kode klik iklan dari chat ke lead-nya (dipakai saat lapor ke Meta).
+// Terpisah dari applyDetectionToLead supaya aman sebelum migration 0031.
+export async function copyCtwaClidToLead(
+  admin: AdminClient,
+  conversationId: string,
+): Promise<void> {
+  const { data: conv } = await admin
+    .from("conversations")
+    .select("lead_id, ctwa_clid")
+    .eq("id", conversationId)
+    .single();
+  if (!conv?.lead_id || !conv.ctwa_clid) return;
+  await admin
+    .from("leads")
+    .update({ ctwa_clid: conv.ctwa_clid })
+    .eq("id", conv.lead_id)
+    .is("ctwa_clid", null);
+}
+
 // Iklan yang sudah dipetakan admin → hasil deteksi. Belum dipetakan → null.
 export function detectionFromAd(ad: AdSource): Detection | null {
   if (!ad.business_unit_id) return null;
@@ -154,6 +186,8 @@ export async function applyDetectionToLead(
   admin: AdminClient,
   conversationId: string,
 ): Promise<void> {
+  // Kode klik iklan ikut diteruskan ke lead (terpisah, lihat fungsinya).
+  await copyCtwaClidToLead(admin, conversationId).catch(() => {});
   try {
     const { data: conv } = await admin
       .from("conversations")
@@ -256,6 +290,7 @@ export async function detectBusinessOnInbound(
           .update({ ad_source_id: ad.id })
           .eq("id", input.conversationId);
       }
+      await saveCtwaClid(admin, input.conversationId, input.referral?.ctwa_clid);
       detection = detectionFromAd(ad);
     }
     if (!detection && input.text) {

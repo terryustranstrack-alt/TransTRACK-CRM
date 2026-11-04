@@ -4,8 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { businessTone } from "@/lib/businessStyle";
 import {
   buildCrmEvent,
+  buildWhatsappEvent,
   metaCapiConfigured,
   sendCrmEvent,
+  sendWhatsappEvent,
   type CapiLead,
 } from "@/lib/metaCapi";
 
@@ -39,6 +41,17 @@ function isStageEvent(body: WebhookBody): boolean {
   return body.type === "UPDATE" && body.record.status !== body.old_record?.status;
 }
 
+// Kode klik iklan WhatsApp baru saja tersalin ke lead (tahap tidak
+// berubah) — saatnya kirim event WhatsApp untuk tahap lead sekarang.
+function isClickIdArrival(body: WebhookBody): boolean {
+  return (
+    body.type === "UPDATE" &&
+    !!body.record?.ctwa_clid &&
+    !body.old_record?.ctwa_clid &&
+    body.record.status === body.old_record?.status
+  );
+}
+
 // Dataset Meta ini milik akun iklan TransTRACK, jadi lead Academy tidak
 // dikirim ke sini (Academy punya akun iklan sendiri). Lead yang belum
 // punya business ikut dikirim — hampir semuanya lead TransTRACK.
@@ -56,24 +69,40 @@ export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!metaCapiConfigured()) {
-    return NextResponse.json({ sent: false, reason: "not configured" });
-  }
 
   const body = (await request.json()) as WebhookBody;
-  if (!isStageEvent(body) || !body.record) {
-    return NextResponse.json({ sent: false, reason: "no stage change" });
-  }
-  if (await isAcademyLead(body.record.business_unit_id)) {
-    return NextResponse.json({ sent: false, reason: "academy lead" });
+  const lead = body.record;
+  const stageChanged = isStageEvent(body);
+  if (!lead || (!stageChanged && !isClickIdArrival(body))) {
+    return NextResponse.json({ sent: [], reason: "nothing to report" });
   }
 
-  const error = await sendCrmEvent(buildCrmEvent(body.record));
-  if (error) {
-    // Dicatat di log Vercel supaya bisa dicek; tetap balas 200 supaya
-    // Supabase tidak mengirim ulang terus-menerus.
-    console.error("[meta-capi]", error);
-    return NextResponse.json({ sent: false, reason: "meta rejected" });
+  const sent: string[] = [];
+  const errors: string[] = [];
+
+  // 1. Event CRM (semua tahap) — hanya lead TransTRACK, hanya saat tahap
+  //    berubah / lead baru.
+  if (
+    stageChanged &&
+    metaCapiConfigured() &&
+    !(await isAcademyLead(lead.business_unit_id))
+  ) {
+    const error = await sendCrmEvent(buildCrmEvent(lead));
+    if (error) errors.push(error);
+    else sent.push("crm");
   }
-  return NextResponse.json({ sent: true });
+
+  // 2. Event WhatsApp (lead dari iklan Click-to-WhatsApp, TransTRACK maupun
+  //    Academy — satu nomor WhatsApp, kode klik menunjuk iklan yang tepat).
+  const waEvent = buildWhatsappEvent(lead);
+  if (waEvent) {
+    const error = await sendWhatsappEvent(waEvent);
+    if (error) errors.push(error);
+    else sent.push("whatsapp");
+  }
+
+  // Ditolak Meta → dicatat di log Vercel. Tetap balas 200 supaya Supabase
+  // tidak mengirim ulang terus-menerus.
+  for (const error of errors) console.error("[meta-capi]", error);
+  return NextResponse.json({ sent, failed: errors.length });
 }
