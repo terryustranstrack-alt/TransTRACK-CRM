@@ -87,3 +87,16 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Meta CRM events (Conversions API)
+
+Setiap lead baru / pindah tahap dikirim ke dataset Meta (Events Manager >
+"Send a CRM event") supaya iklan dioptimasi ke lead berkualitas. Alurnya:
+Supabase Database Webhook (tabel `leads`, Insert + Update) →
+`POST /api/meta/crm-event` (header `x-webhook-secret`) → Meta.
+
+Env (Vercel production): `META_CAPI_DATASET_ID` (776292496849890 untuk
+TransTRACK.ID), `META_CAPI_ACCESS_TOKEN` (tombol "Generate Access Token" di
+panduan), `META_CAPI_WEBHOOK_SECRET` (teks acak, sama dengan header di
+Supabase), opsional `META_CAPI_TEST_EVENT_CODE` (uji coba di tab Test events;
+hapus setelah selesai). Lead Academy tidak dikirim (beda akun iklan).

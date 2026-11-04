@@ -4,7 +4,9 @@ import { NextResponse, type NextRequest } from "next/server";
 // /api/whatsapp/webhook dipanggil langsung oleh server Meta (tanpa sesi
 // user) — otentikasinya sendiri lewat verifikasi X-Hub-Signature-256 /
 // hub.verify_token di src/app/api/whatsapp/webhook/route.ts, bukan cookie.
-const PUBLIC_ROUTES = ["/login", "/api/whatsapp/webhook"];
+// /api/meta/crm-event dipanggil Supabase (Database Webhook) — dijaga
+// header x-webhook-secret, lihat src/app/api/meta/crm-event/route.ts.
+const PUBLIC_ROUTES = ["/login", "/api/whatsapp/webhook", "/api/meta/crm-event"];
 
 // Dipanggil di setiap request lewat src/proxy.ts (middleware Next.js).
 // Tugasnya dua: (1) refresh token login Supabase kalau sudah mau habis,
