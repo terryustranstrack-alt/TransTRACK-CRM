@@ -28,6 +28,11 @@ function formatCost(n: number | null) {
   return n == null ? "—" : formatRupiah(Math.round(n));
 }
 
+// ROAS ditulis "4.2×"; "—" kalau belum bisa dihitung.
+function formatRoas(n: number | null) {
+  return n == null ? "—" : `${n.toFixed(1)}×`;
+}
+
 // Rentang tanggal untuk menanyakan biaya ke Meta. Kalau "From" kosong,
 // mulai dari hari iklan paling awal terlihat; kalau "To" kosong, sampai
 // hari ini — supaya sama dengan "semua waktu" di tabel.
@@ -205,6 +210,16 @@ export default function AdReport({
                 <th className="py-2 pr-3 font-medium text-right">Lost</th>
                 <th className="py-2 pr-3 font-medium text-right">Conversion</th>
                 <th className="py-2 pr-3 font-medium text-right">Won value</th>
+                {showSpend && (
+                  <th className="py-2 pr-3 font-medium text-right" title="Ad spend per Won deal">
+                    Cost / won
+                  </th>
+                )}
+                {showSpend && (
+                  <th className="py-2 pr-3 font-medium text-right" title="Won value divided by ad spend — e.g. 4.0× means every Rp1 of ads brought Rp4 of deals">
+                    ROAS
+                  </th>
+                )}
                 <th className="py-2 font-medium text-right" title="Estimated value of leads still open">
                   Open pipeline
                 </th>
@@ -244,6 +259,10 @@ export default function AdReport({
                   <td className="py-2 pr-3 text-right text-[var(--color-danger)]">{row.lost}</td>
                   <td className="py-2 pr-3 text-right">{row.conversionRate.toFixed(1)}%</td>
                   <td className="py-2 pr-3 text-right whitespace-nowrap">{formatRupiah(row.wonValue)}</td>
+                  {showSpend && (
+                    <td className="py-2 pr-3 text-right whitespace-nowrap">{formatCost(row.costPerWon)}</td>
+                  )}
+                  {showSpend && <td className="py-2 pr-3 text-right">{formatRoas(row.roas)}</td>}
                   <td className="py-2 text-right whitespace-nowrap text-[var(--color-muted)]">
                     {formatRupiah(row.openValue)}
                   </td>
@@ -267,6 +286,10 @@ export default function AdReport({
                 <td className="py-2 pr-3 text-right text-[var(--color-danger)]">{total.lost}</td>
                 <td className="py-2 pr-3 text-right">{total.conversionRate.toFixed(1)}%</td>
                 <td className="py-2 pr-3 text-right whitespace-nowrap">{formatRupiah(total.wonValue)}</td>
+                {showSpend && (
+                  <td className="py-2 pr-3 text-right whitespace-nowrap">{formatCost(total.costPerWon)}</td>
+                )}
+                {showSpend && <td className="py-2 pr-3 text-right">{formatRoas(total.roas)}</td>}
                 <td className="py-2 text-right whitespace-nowrap text-[var(--color-muted)]">
                   {formatRupiah(total.openValue)}
                 </td>

@@ -21,6 +21,8 @@ import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
 import { BUSINESS_TONE_CLASSES, businessTone } from "@/lib/businessStyle";
 import BusinessBadge from "@/components/BusinessBadge";
 import BusinessFilter from "@/components/BusinessFilter";
+import AdOriginTag from "@/components/AdOriginTag";
+import { useAdHeadlines } from "@/lib/useAdHeadlines";
 import { BUSINESS_FILTER_ALL, matchesBusiness } from "@/lib/leadFilters";
 import {
   LEAD_STATUSES,
@@ -41,11 +43,13 @@ function LeadCard({
   lead,
   profiles,
   businessName,
+  adHeadlines,
   onStatusChange,
 }: {
   lead: Lead;
   profiles: Profile[];
   businessName: string | undefined;
+  adHeadlines: Map<string, string>;
   onStatusChange: (leadId: string, status: LeadStatus) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -81,8 +85,9 @@ function LeadCard({
         {...attributes}
         className="cursor-grab active:cursor-grabbing"
       >
-        <div className="mb-1.5">
+        <div className="mb-1.5 flex flex-wrap items-center gap-1">
           <BusinessBadge name={businessName} />
+          <AdOriginTag adSourceId={lead.ad_source_id} headlines={adHeadlines} />
         </div>
         <Link
           href={`/leads/${lead.id}`}
@@ -144,12 +149,14 @@ function LeadColumn({
   leads,
   profiles,
   businessNameById,
+  adHeadlines,
   onStatusChange,
 }: {
   status: LeadStatus;
   leads: Lead[];
   profiles: Profile[];
   businessNameById: Map<string, string>;
+  adHeadlines: Map<string, string>;
   onStatusChange: (leadId: string, status: LeadStatus) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
@@ -176,6 +183,7 @@ function LeadColumn({
             lead={lead}
             profiles={profiles}
             businessName={businessNameById.get(lead.business_unit_id ?? "")}
+            adHeadlines={adHeadlines}
             onStatusChange={onStatusChange}
           />
         ))}
@@ -201,6 +209,7 @@ export default function LeadBoard() {
   const brands = useBrands();
   const { profile: currentProfile } = useCurrentProfile();
   const { businessUnits } = useLeadFieldSettings();
+  const adHeadlines = useAdHeadlines();
   const businessNameById = useMemo(
     () => new Map(businessUnits.map((b) => [b.id, b.name])),
     [businessUnits],
@@ -374,6 +383,7 @@ export default function LeadBoard() {
               leads={filteredLeads.filter((lead) => lead.status === status)}
               profiles={profiles}
               businessNameById={businessNameById}
+              adHeadlines={adHeadlines}
               onStatusChange={handleStatusChange}
             />
           ))}

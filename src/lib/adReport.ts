@@ -15,6 +15,8 @@ export type AdReportRow = {
   spend: number | null;
   costPerChat: number | null;
   costPerLead: number | null;
+  costPerWon: number | null; // biaya iklan per deal Won
+  roas: number | null; // nilai Won ÷ biaya iklan (mis. 4.2 = tiap Rp1 iklan jadi Rp4,2)
 };
 
 const percent = (part: number, whole: number) =>
@@ -24,6 +26,11 @@ const percent = (part: number, whole: number) =>
 // atau belum ada chat/lead sama sekali (tidak bisa dibagi nol).
 const costPer = (spend: number | null, count: number) =>
   spend != null && count > 0 ? spend / count : null;
+
+// ROAS = nilai deal Won dibagi biaya iklan. null kalau biaya belum
+// diketahui atau nol (tidak bisa dibagi).
+const roasOf = (wonValue: number, spend: number | null) =>
+  spend != null && spend > 0 ? wonValue / spend : null;
 
 // Hitung satu baris dari chat & lead milik satu iklan.
 function buildRow(
@@ -50,6 +57,8 @@ function buildRow(
     spend,
     costPerChat: costPer(spend, chats),
     costPerLead: costPer(spend, leads.length),
+    costPerWon: costPer(spend, won.length),
+    roas: roasOf(sumValue(won), spend),
   };
 }
 
@@ -101,7 +110,10 @@ export function totalAdReport(rows: AdReportRow[]) {
   // Total biaya hanya dihitung kalau minimal satu iklan punya data biaya.
   const hasSpend = rows.some((r) => r.spend != null);
   const spend = hasSpend ? sum((r) => r.spend ?? 0) : null;
+  const wonValue = sum((r) => r.wonValue);
   return {
+    costPerWon: costPer(spend, won),
+    roas: roasOf(wonValue, spend),
     spend,
     costPerChat: costPer(spend, chats),
     costPerLead: costPer(spend, leads),
@@ -111,7 +123,7 @@ export function totalAdReport(rows: AdReportRow[]) {
     won,
     lost: sum((r) => r.lost),
     conversionRate: percent(won, leads),
-    wonValue: sum((r) => r.wonValue),
+    wonValue,
     openValue: sum((r) => r.openValue),
   };
 }

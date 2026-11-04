@@ -23,7 +23,17 @@ export type CapiLead = {
   email: string | null;
   kota: string | null;
   status: LeadStatus;
+  estimasi_nilai: number | null;
 };
+
+// Nilai deal untuk dikirim ke Meta: hanya saat lead Won ("Closing") dan
+// estimasi nilainya diisi. Dengan ini Meta bisa membedakan deal besar dan
+// kecil (optimasi nilai / ROAS di Ads Manager).
+function wonValue(lead: CapiLead): { value: number; currency: string } | null {
+  if (lead.status !== "Closing") return null;
+  const value = Number(lead.estimasi_nilai ?? 0);
+  return value > 0 ? { value, currency: "IDR" } : null;
+}
 
 // Fitur aktif kalau ID dataset & token sudah diisi di env.
 export function metaCapiConfigured(): boolean {
@@ -78,6 +88,7 @@ export function buildCrmEvent(lead: CapiLead) {
     custom_data: {
       event_source: "crm",
       lead_event_source: "TransTRACK CRM",
+      ...wonValue(lead),
     },
   };
 }

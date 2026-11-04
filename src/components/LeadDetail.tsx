@@ -19,6 +19,8 @@ import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
 import LeadClassificationFields from "@/components/LeadClassificationFields";
 import BusinessPicker from "@/components/BusinessPicker";
 import BusinessBadge from "@/components/BusinessBadge";
+import AdOriginTag from "@/components/AdOriginTag";
+import { useAdHeadlines } from "@/lib/useAdHeadlines";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
 import { useCurrentProfile } from "@/lib/useCurrentProfile";
 import SumberSelect from "@/components/SumberSelect";
@@ -53,6 +55,8 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
   const [saving, setSaving] = useState(false);
   const sumberOptions = useSumberOptions();
   const { businessUnits, customFields } = useLeadFieldSettings();
+  // Judul iklan Meta untuk label "From ad: …" di kepala halaman.
+  const adHeadlines = useAdHeadlines();
   const profiles = useProfiles();
   const { profile: currentProfile } = useCurrentProfile();
   const [hasWaConversation, setHasWaConversation] = useState(false);
@@ -249,6 +253,11 @@ export default function LeadDetail({ leadId }: { leadId: string }) {
             <BusinessBadge
               size="md"
               name={businessUnits.find((b) => b.id === lead.business_unit_id)?.name}
+            />
+            <AdOriginTag
+              adSourceId={lead.ad_source_id}
+              headlines={adHeadlines}
+              className="text-xs"
             />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight break-words">{lead.nama}</h1>
