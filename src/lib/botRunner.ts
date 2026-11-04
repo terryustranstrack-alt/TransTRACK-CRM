@@ -11,6 +11,7 @@ import {
 import { logWhatsappActivity } from "@/lib/activity";
 import { brandTeamIds, sendPushToProfiles } from "@/lib/push";
 import { applyDetectionToLead } from "@/lib/businessDetection";
+import { businessTone } from "@/lib/businessStyle";
 import type { BotConfig } from "@/lib/types";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -71,51 +72,47 @@ function toHistory(messages: MessageRow[]): BotHistoryTurn[] {
   }));
 }
 
-// Pilih pesan sambutan untuk kontak pertama kali: kalau chat ini sudah
-// dikenali milik business tertentu (dari iklan / kata kunci di pesan
-// pertama) dan business itu punya pesan sambutan sendiri, pakai itu —
-// mis. pelanggan dari iklan Academy disapa soal kelas, bukan soal armada.
-// Selain itu pakai pesan sambutan umum di pengaturan chatbot.
-async function pickWelcomeMessage(
+// Teks chatbot milik satu Business: pesan sambutan, instruksi, dan FAQ.
+type BusinessBotTexts = { welcome: string; systemPrompt: string; faq: string };
+
+// Ambil teks chatbot untuk chat ini. Pakai Business yang sudah dikenali
+// (iklan / kata kunci / tebakan AI) — mis. chat Academy disapa & dijawab
+// soal kelas, bukan soal GPS armada. Chat yang belum dikenali business-nya
+// memakai pengaturan TransTRACK (business utama).
+async function loadBusinessBotTexts(
   admin: AdminClient,
   conv: ConversationRow,
-  botConfig: BotConfig,
-): Promise<string> {
-  if (conv.business_unit_id) {
-    const { data: unit } = await admin
-      .from("business_units")
-      .select("welcome_message")
-      .eq("id", conv.business_unit_id)
-      .single();
-    const own = (unit?.welcome_message as string | undefined)?.trim();
-    if (own) return own;
-  }
-  return botConfig.welcome_message.trim();
+): Promise<BusinessBotTexts | null> {
+  const { data } = await admin
+    .from("business_units")
+    .select("id, name, welcome_message, bot_prompt, bot_faq");
+  const units = data ?? [];
+  const unit =
+    units.find((u) => u.id === conv.business_unit_id) ??
+    units.find((u) => businessTone(u.name as string) === "transtrack");
+  if (!unit) return null;
+  return {
+    welcome: ((unit.welcome_message as string) ?? "").trim(),
+    systemPrompt: ((unit.bot_prompt as string) ?? "").trim(),
+    faq: ((unit.bot_faq as string) ?? "").trim(),
+  };
 }
 
-// Instruksi (system prompt) & FAQ yang dipakai AI untuk membalas chat ini.
-// Kalau chat sudah dikenali milik business tertentu (iklan / kata kunci /
-// tebakan AI) dan business itu punya instruksi/FAQ sendiri, pakai itu —
-// mis. chat Academy dijawab soal kelas, bukan soal GPS armada. Bagian yang
-// dikosongkan di business itu tetap memakai versi umum.
-async function pickBotInstructions(
-  admin: AdminClient,
-  conv: ConversationRow,
-  botConfig: BotConfig,
-): Promise<{ systemPrompt: string; faq: string }> {
-  const general = { systemPrompt: botConfig.system_prompt, faq: botConfig.faq };
-  if (!conv.business_unit_id) return general;
+// Pesan sambutan untuk kontak pertama kali. Teks lama di bot_config cuma
+// cadangan kalau kotak business masih kosong (data dari sebelum pengaturan
+// dipindah ke per-business) — tidak lagi tampil di Settings.
+function pickWelcomeMessage(texts: BusinessBotTexts | null, botConfig: BotConfig): string {
+  return texts?.welcome || botConfig.welcome_message.trim();
+}
 
-  const { data: unit } = await admin
-    .from("business_units")
-    .select("bot_prompt, bot_faq")
-    .eq("id", conv.business_unit_id)
-    .single();
-  const ownPrompt = (unit?.bot_prompt as string | undefined)?.trim();
-  const ownFaq = (unit?.bot_faq as string | undefined)?.trim();
+// Instruksi (system prompt) & FAQ untuk AI. Cadangannya sama seperti di atas.
+function pickBotInstructions(
+  texts: BusinessBotTexts | null,
+  botConfig: BotConfig,
+): { systemPrompt: string; faq: string } {
   return {
-    systemPrompt: ownPrompt || general.systemPrompt,
-    faq: ownFaq || general.faq,
+    systemPrompt: texts?.systemPrompt || botConfig.system_prompt,
+    faq: texts?.faq || botConfig.faq,
   };
 }
 
@@ -173,14 +170,15 @@ export async function maybeRunBot(
     // pesan pembuka apa adanya — biasanya untuk menyapa & menanyakan data
     // calon pelanggan sekaligus. Tidak lewat AI, jadi selalu sama & lengkap.
     const hasOutbound = messages.some((m) => m.direction === "outbound");
-    const welcome = await pickWelcomeMessage(admin, conv, botConfig);
+    const texts = await loadBusinessBotTexts(admin, conv);
+    const welcome = pickWelcomeMessage(texts, botConfig);
     if (!hasOutbound && welcome) {
       if (await botMustStayQuiet(admin, conversationId)) return;
       await deliverBotText(admin, conv, conversationId, welcome);
       return;
     }
 
-    const { systemPrompt, faq } = await pickBotInstructions(admin, conv, botConfig);
+    const { systemPrompt, faq } = pickBotInstructions(texts, botConfig);
     const { text, handoff } = await generateBotReply({
       systemPrompt,
       faq,

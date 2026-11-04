@@ -25,12 +25,12 @@ export default function BusinessWelcomeSettings() {
       <div>
         <h3 className="text-sm font-medium">Welcome message per business</h3>
         <p className="text-xs text-[var(--color-muted)]">
-          When a new chat is already recognised as a business — from the Meta
-          ad they clicked or a keyword in their first message (see Business
-          detection below) — the bot greets them with that business&apos;s
-          message instead of the general one above. Leave blank to use the
-          general welcome message. Chats only recognised later by the AI
-          guess get the general message, because the greeting is sent first.
+          Sent word-for-word the first time a new contact messages, before
+          the AI takes over — use it to greet and ask for the details you
+          want. A chat already recognised as a business (from the Meta ad
+          they clicked or a keyword in their first message — see Business
+          detection below) gets that business&apos;s message. Chats not yet
+          recognised get the TransTRACK message.
         </p>
       </div>
       {businessUnits.map((unit) => (
@@ -75,7 +75,7 @@ function WelcomeEditor({
         placeholder={
           unit.name.toLowerCase().includes("academy")
             ? ACADEMY_PLACEHOLDER
-            : "Blank = use the general welcome message above"
+            : "Greeting sent to new contacts for this business"
         }
         className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
       />

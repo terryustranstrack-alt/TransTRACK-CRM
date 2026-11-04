@@ -29,9 +29,8 @@ export default function BusinessBotSettings() {
         <p className="text-xs text-[var(--color-muted)]">
           When a chat is recognised as a business (from the Meta ad, a
           keyword, or the AI guess — see Business detection below), the bot
-          answers using that business&apos;s instructions and FAQ instead of
-          the general ones above. Leave a box blank to keep using the general
-          version for that part.
+          answers using that business&apos;s instructions and FAQ. Chats not
+          yet recognised use the TransTRACK instructions and FAQ.
         </p>
       </div>
       {businessUnits.map((unit) => (
@@ -80,7 +79,7 @@ function BotInstructionsEditor({
           onChange={(e) => setPrompt(e.target.value)}
           rows={4}
           placeholder={
-            isAcademy ? ACADEMY_PROMPT_PLACEHOLDER : "Blank = use the general instructions above"
+            isAcademy ? ACADEMY_PROMPT_PLACEHOLDER : "Who the bot is and how it should answer for this business"
           }
           className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
         />
@@ -94,7 +93,7 @@ function BotInstructionsEditor({
           onChange={(e) => setFaq(e.target.value)}
           rows={6}
           placeholder={
-            isAcademy ? ACADEMY_FAQ_PLACEHOLDER : "Blank = use the general FAQ above"
+            isAcademy ? ACADEMY_FAQ_PLACEHOLDER : "Questions & answers the bot may use for this business"
           }
           className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
         />

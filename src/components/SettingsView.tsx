@@ -65,10 +65,9 @@ export default function SettingsView() {
     const { error } = await supabase
       .from("bot_config")
       .update({
+        // Pesan sambutan, instruksi & FAQ sekarang diatur per Business
+        // (BusinessWelcomeSettings / BusinessBotSettings), bukan di sini.
         enabled: bot.enabled,
-        system_prompt: bot.system_prompt,
-        faq: bot.faq,
-        welcome_message: bot.welcome_message,
         max_replies_per_conversation: bot.max_replies_per_conversation,
         updated_at: new Date().toISOString(),
         updated_by: user?.id ?? null,
@@ -287,57 +286,6 @@ export default function SettingsView() {
                 onChange={(e) => setBot({ ...bot, enabled: e.target.checked })}
               />
               Enabled
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-[var(--color-muted)]">
-                Welcome message — sent word-for-word the first time a new
-                contact messages, before the AI takes over. Use it to greet
-                and ask for the details you want (name, email, job title,
-                company, city, needs). Leave blank to let the AI handle the
-                first reply too.
-              </span>
-              <textarea
-                value={bot.welcome_message}
-                onChange={(e) =>
-                  setBot({ ...bot, welcome_message: e.target.value })
-                }
-                rows={5}
-                placeholder={
-                  "Halo! 👋 Terima kasih sudah menghubungi TransTRACK. Saya Ratih. Supaya tim kami bisa membantu dengan tepat, boleh dibantu isi:\n1. Nama\n2. Email\n3. Jabatan\n4. Perusahaan\n5. Kota\n6. Kebutuhan Anda (mis. jumlah & jenis kendaraan)"
-                }
-                className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-[var(--color-muted)]">
-                System prompt (who the bot is, how it should behave)
-              </span>
-              <textarea
-                value={bot.system_prompt}
-                onChange={(e) =>
-                  setBot({ ...bot, system_prompt: e.target.value })
-                }
-                rows={4}
-                placeholder="You are the assistant for TransTRACK, a fleet management company. Greet new leads warmly, answer basic questions, and offer to connect them with a sales rep."
-                className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-[var(--color-muted)]">
-                FAQ / reference info the bot may use to answer
-              </span>
-              <textarea
-                value={bot.faq}
-                onChange={(e) => setBot({ ...bot, faq: e.target.value })}
-                rows={6}
-                placeholder={
-                  "Q: What does TransTRACK do?\nA: GPS fleet tracking, fuel monitoring, driver management.\n\nQ: Office hours?\nA: Mon–Fri 9am–6pm WIB."
-                }
-                className="border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm"
-              />
             </label>
 
             <label className="flex flex-col gap-1 max-w-xs">
