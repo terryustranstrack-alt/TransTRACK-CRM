@@ -62,7 +62,9 @@ function messageTime(m: Message): string {
 // Isi sebuah gelembung pesan: teks biasa, atau media (gambar tampil langsung,
 // audio/video pakai player, dokumen jadi link unduh). Media yang belum selesai
 // diunduh ke Storage ditampilkan sebagai label sementara.
-function MessageBody({ m }: { m: Message }) {
+// onMediaLoad: dipanggil saat gambar/video selesai dimuat — tingginya baru
+// diketahui saat itu, jadi chat perlu digeser ke bawah lagi.
+function MessageBody({ m, onMediaLoad }: { m: Message; onMediaLoad: () => void }) {
   const mediaUrl = `/api/whatsapp/media/${m.id}`;
   const caption = m.text_body ? (
     <p className="whitespace-pre-wrap mt-1">{m.text_body}</p>
@@ -94,6 +96,7 @@ function MessageBody({ m }: { m: Message }) {
         <img
           src={mediaUrl}
           alt={m.type}
+          onLoad={onMediaLoad}
           className="rounded max-w-full max-h-64 object-contain"
         />
         {caption}
@@ -106,7 +109,12 @@ function MessageBody({ m }: { m: Message }) {
   if (m.type === "video") {
     return (
       <>
-        <video controls src={mediaUrl} className="rounded max-w-full max-h-64" />
+        <video
+          controls
+          src={mediaUrl}
+          onLoadedMetadata={onMediaLoad}
+          className="rounded max-w-full max-h-64"
+        />
         {caption}
       </>
     );
@@ -148,6 +156,11 @@ export default function InboxView() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
+  // Kotak daftar pesan + penanda "user sedang di paling bawah chat".
+  // Kalau user sedang scroll ke atas membaca pesan lama, pesan baru yang
+  // masuk tidak menarik paksa ke bawah.
+  const messagesBoxRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
 
   // Nama business & judul iklan — untuk label TransTRACK/Academy dan
   // keterangan "dari iklan" di daftar chat dan header chat.
@@ -243,6 +256,38 @@ export default function InboxView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversationId]);
 
+  // Geser kotak chat ke pesan paling bawah (terbaru).
+  function scrollToBottom() {
+    const box = messagesBoxRef.current;
+    if (box) box.scrollTop = box.scrollHeight;
+  }
+
+  // Dipanggil saat gambar/video selesai dimuat: geser lagi ke bawah, tapi
+  // hanya kalau user memang sedang di paling bawah.
+  function scrollToBottomIfSticking() {
+    if (stickToBottomRef.current) scrollToBottom();
+  }
+
+  // Catat apakah user masih (hampir) di paling bawah chat — toleransi 80px.
+  function handleMessagesScroll() {
+    const box = messagesBoxRef.current;
+    if (!box) return;
+    stickToBottomRef.current =
+      box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  }
+
+  // Setiap kali sebuah chat dibuka: mulai dari pesan terbaru (paling bawah).
+  useEffect(() => {
+    stickToBottomRef.current = true;
+  }, [selectedConversationId]);
+
+  // Pesan dimuat / pesan baru masuk: ikut geser ke bawah selama user
+  // tidak sedang scroll ke atas membaca pesan lama.
+  useEffect(() => {
+    scrollToBottomIfSticking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   const linkedLead = selectedConversation?.lead_id
     ? (leads.find((l) => l.id === selectedConversation.lead_id) ?? null)
     : null;
@@ -278,6 +323,8 @@ export default function InboxView() {
     if (!selectedConversationId || !draftText.trim()) return;
     const messageToSend = draftText.trim();
     setDraftText("");
+    // Pesan yang kita kirim sendiri selalu ditampilkan (geser ke bawah).
+    stickToBottomRef.current = true;
     setActionError(null);
     startTransition(async () => {
       const result = await sendMessage(selectedConversationId, messageToSend);
@@ -624,7 +671,11 @@ export default function InboxView() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 min-h-0">
+            <div
+              ref={messagesBoxRef}
+              onScroll={handleMessagesScroll}
+              className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 min-h-0"
+            >
               {messages.map((m) => (
                 <div
                   key={m.id}
@@ -634,7 +685,7 @@ export default function InboxView() {
                       : "self-start bg-[var(--color-muted-bg)]"
                   }`}
                 >
-                  <MessageBody m={m} />
+                  <MessageBody m={m} onMediaLoad={scrollToBottomIfSticking} />
                   <p
                     className={`font-data text-[10px] mt-1 ${
                       m.direction === "outbound"
