@@ -399,9 +399,12 @@ export default function InboxView() {
   }
 
   return (
-    // md:h-dvh — di desktop inbox mengisi pas satu layar di samping menu,
-    // jadi daftar chat & isi chat masing-masing bisa di-scroll sendiri.
-    <main className="flex flex-1 min-h-0 md:h-dvh">
+    // Tinggi inbox dikunci pas satu layar, supaya daftar chat & isi chat
+    // masing-masing bisa di-scroll sendiri (bukan seluruh halaman yang ikut
+    // memanjang). Di telepon dikurangi bar atas (49px) + bar menu bawah
+    // (3.5rem + area home-indicator); di desktop (md:) penuh satu layar.
+    // flex-none: jangan pakai flex-1 — itu membuat tinggi di atas diabaikan.
+    <main className="flex flex-none min-h-0 h-[calc(100dvh-49px-3.5rem-env(safe-area-inset-bottom))] md:h-dvh">
       {/* Daftar percakapan: layar penuh di telepon, sembunyi saat sebuah
           percakapan dibuka; kolom tetap 320px di desktop (`lg:`). */}
       <aside
