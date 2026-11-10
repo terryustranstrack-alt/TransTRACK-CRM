@@ -102,6 +102,36 @@ export async function updateSalesBrand(
   return { success: true };
 }
 
+// Simpan tim business seorang sales (TransTRACK, Academy, atau dua-duanya).
+// Dipanggil dari centangan per baris di tabel Sales Team. Daftar lama
+// diganti seluruhnya dengan daftar baru; daftar kosong = belum masuk tim
+// mana pun (melihat semua chat belum-diklaim, seperti sebelumnya).
+export async function updateSalesBusinesses(
+  profileId: string,
+  businessUnitIds: string[],
+): Promise<SalesActionState> {
+  const adminCheck = await requireAdmin();
+  if (!adminCheck.ok) return { error: adminCheck.error };
+
+  const admin = createAdminClient();
+  const { error: deleteError } = await admin
+    .from("profile_business_units")
+    .delete()
+    .eq("profile_id", profileId);
+  if (deleteError) return { error: deleteError.message };
+
+  const ids = [...new Set(businessUnitIds)];
+  if (ids.length > 0) {
+    const { error } = await admin
+      .from("profile_business_units")
+      .insert(ids.map((id) => ({ profile_id: profileId, business_unit_id: id })));
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/sales");
+  return { success: true };
+}
+
 // Hapus akun login seorang sales. Akun admin sengaja tidak boleh dihapus
 // lewat sini supaya sistem tidak pernah kehabisan admin (terkunci total).
 export async function deleteSales(profileId: string): Promise<SalesActionState> {

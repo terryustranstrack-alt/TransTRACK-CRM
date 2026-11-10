@@ -664,8 +664,8 @@ async function handOffToSales(
 }
 
 // Notifikasi push "lead siap di-follow-up": ke sales yang memegang
-// percakapan kalau sudah ada, kalau belum ke seluruh tim brand (+ admin)
-// supaya ada yang cepat mengambilnya.
+// percakapan kalau sudah ada, kalau belum ke tim sales business lead itu
+// (TransTRACK / Academy; + admin) supaya ada yang cepat mengambilnya.
 async function notifyHandoff(
   admin: AdminClient,
   conv: { assigned_to: string | null; brand_id: string | null },
@@ -673,12 +673,12 @@ async function notifyHandoff(
 ): Promise<void> {
   const { data: lead } = await admin
     .from("leads")
-    .select("nama, perusahaan")
+    .select("nama, perusahaan, business_unit_id")
     .eq("id", leadId)
     .single();
   const recipients = conv.assigned_to
     ? [conv.assigned_to]
-    : await brandTeamIds(admin, conv.brand_id);
+    : await brandTeamIds(admin, conv.brand_id, lead?.business_unit_id ?? null);
   await sendPushToProfiles(admin, recipients, {
     title: "🔥 Hot lead ready for follow-up",
     body: [lead?.nama, lead?.perusahaan].filter(Boolean).join(" · ") || "New lead",

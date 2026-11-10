@@ -6,15 +6,28 @@ import {
   createSales,
   deleteSales,
   updateSalesBrand,
+  updateSalesBusinesses,
   type SalesActionState,
 } from "@/app/sales/actions";
 import { useBrands } from "@/lib/useBrands";
+import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
 import type { Lead, Profile } from "@/lib/types";
 
 const supabase = createClient();
 
 function formatRupiah(n: number) {
   return n.toLocaleString("id-ID", { style: "currency", currency: "IDR" });
+}
+
+// Ubah baris tabel keanggotaan tim jadi peta: profile id → id business.
+function groupTeams(
+  rows: { profile_id: string; business_unit_id: string }[],
+): Map<string, string[]> {
+  const teams = new Map<string, string[]>();
+  for (const row of rows) {
+    teams.set(row.profile_id, [...(teams.get(row.profile_id) ?? []), row.business_unit_id]);
+  }
+  return teams;
 }
 
 // Halaman "Sales Team" (khusus admin): daftar akun sales + statistik
@@ -28,6 +41,10 @@ export default function SalesTable() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const brands = useBrands();
+  const { businessUnits } = useLeadFieldSettings();
+  // Tim business tiap sales: profile id → daftar id business. `null` =
+  // tabelnya belum ada (migrasi 0032 belum dijalankan) → kolom disembunyikan.
+  const [teams, setTeams] = useState<Map<string, string[]> | null>(null);
 
   const [formState, formAction, formPending] = useActionState<
     SalesActionState,
@@ -38,10 +55,13 @@ export default function SalesTable() {
     const [
       { data: profilesData, error: profileError },
       { data: leadsData, error: leadsError },
+      { data: teamRows, error: teamsError },
     ] = await Promise.all([
       supabase.from("profiles").select("*").order("full_name", { ascending: true }),
       supabase.from("leads").select("*"),
+      supabase.from("profile_business_units").select("profile_id, business_unit_id"),
     ]);
+    setTeams(teamsError ? null : groupTeams(teamRows ?? []));
 
     if (profileError) {
       setError(profileError.message);
@@ -104,6 +124,19 @@ export default function SalesTable() {
     });
   }
 
+  // Centang / hapus centang satu business untuk seorang sales.
+  function handleBusinessToggle(profileId: string, businessId: string, checked: boolean) {
+    const current = teams?.get(profileId) ?? [];
+    const next = checked
+      ? [...current, businessId]
+      : current.filter((id) => id !== businessId);
+    startTransition(async () => {
+      const result = await updateSalesBusinesses(profileId, next);
+      if (result?.error) setError(result.error);
+      else loadData();
+    });
+  }
+
   // Hapus akun sales — sama seperti hapus lead, pakai pola "klik dua kali
   // untuk konfirmasi" (lihat komentar handleDelete di LeadDetail.tsx).
   function handleDelete(profileId: string) {
@@ -126,6 +159,9 @@ export default function SalesTable() {
     return <p className="p-8 text-sm text-[var(--color-muted)]">Loading sales data...</p>;
   }
 
+  const showTeams = teams !== null && businessUnits.length > 0;
+  const columnCount = 7 + (brands.length > 1 ? 1 : 0) + (showTeams ? 1 : 0);
+
   return (
     <main className="p-4 sm:p-8 flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -140,6 +176,15 @@ export default function SalesTable() {
       </div>
 
       {error && <p className="text-[var(--color-danger)] text-sm">{error}</p>}
+
+      {showTeams && (
+        <p className="text-sm text-[var(--color-muted)] max-w-3xl">
+          <span className="font-medium text-foreground">Business team:</span> new
+          chats recognised as a business only go to (and alert) the sales ticked
+          for it. Chats whose business isn&apos;t known yet go to everyone. Sales
+          with nothing ticked still see all chats.
+        </p>
+      )}
 
       {showForm && (
         <form
@@ -228,6 +273,7 @@ export default function SalesTable() {
               <th className="p-2">Phone</th>
               <th className="p-2">Email</th>
               {brands.length > 1 && <th className="p-2">Brand</th>}
+              {showTeams && <th className="p-2">Business team</th>}
               <th className="p-2">Prospects</th>
               <th className="p-2">Won Revenue</th>
               <th className="p-2">Potential Revenue</th>
@@ -237,7 +283,7 @@ export default function SalesTable() {
           <tbody>
             {profiles.length === 0 && (
               <tr>
-                <td colSpan={brands.length > 1 ? 8 : 7} className="p-4 text-center text-[var(--color-muted)]">
+                <td colSpan={columnCount} className="p-4 text-center text-[var(--color-muted)]">
                   No sales accounts yet.
                 </td>
               </tr>
@@ -277,6 +323,31 @@ export default function SalesTable() {
                           </option>
                         ))}
                       </select>
+                    </td>
+                  )}
+                  {showTeams && (
+                    <td className="p-2">
+                      {profile.is_admin ? (
+                        <span className="text-xs text-[var(--color-muted)]">
+                          Admins see all
+                        </span>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          {businessUnits.map((b) => (
+                            <label key={b.id} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={teams?.get(profile.id)?.includes(b.id) ?? false}
+                                onChange={(e) =>
+                                  handleBusinessToggle(profile.id, b.id, e.target.checked)
+                                }
+                                disabled={isPending}
+                              />
+                              {b.name}
+                            </label>
+                          ))}
+                        </div>
+                      )}
                     </td>
                   )}
                   <td className="p-2">{stat.count}</td>

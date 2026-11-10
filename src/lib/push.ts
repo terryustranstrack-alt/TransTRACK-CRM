@@ -69,9 +69,10 @@ export async function sendPushToProfiles(
 
 // Notifikasi "pesan WhatsApp baru masuk" — supaya sales tahu walau aplikasi
 // / tab CRM sedang ditutup. Penerima: sales yang memegang percakapan; kalau
-// belum ada yang pegang, seluruh tim brand + admin. Tag per percakapan:
-// beberapa pesan beruntun dari kontak yang sama cuma jadi SATU notifikasi
-// (yang terbaru menggantikan yang lama), tidak menumpuk.
+// belum ada yang pegang, tim sales business chat itu (TransTRACK / Academy,
+// kalau sudah dikenali) + admin. Tag per percakapan: beberapa pesan beruntun
+// dari kontak yang sama cuma jadi SATU notifikasi (yang terbaru menggantikan
+// yang lama), tidak menumpuk.
 export async function notifyInboundMessage(
   admin: SupabaseClient,
   chat: {
@@ -84,7 +85,11 @@ export async function notifyInboundMessage(
 ): Promise<void> {
   const recipients = chat.assignedTo
     ? [chat.assignedTo]
-    : await brandTeamIds(admin, chat.brandId);
+    : await brandTeamIds(
+        admin,
+        chat.brandId,
+        await conversationBusinessId(admin, chat.conversationId),
+      );
   await sendPushToProfiles(admin, recipients, {
     title: `💬 ${chat.senderName}`,
     body: chat.preview,
@@ -94,14 +99,55 @@ export async function notifyInboundMessage(
   });
 }
 
+// Business (TransTRACK / Academy) hasil deteksi untuk sebuah percakapan,
+// atau null kalau belum dikenali.
+async function conversationBusinessId(
+  admin: SupabaseClient,
+  conversationId: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("conversations")
+    .select("business_unit_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+  return data?.business_unit_id ?? null;
+}
+
+// Daftar tim business per sales: profile id → business yang dia tangani.
+// Kalau tabelnya belum ada (migrasi 0032 belum dijalankan), dianggap semua
+// sales belum punya tim — perilaku lama.
+async function businessTeams(admin: SupabaseClient): Promise<Map<string, string[]>> {
+  const { data, error } = await admin
+    .from("profile_business_units")
+    .select("profile_id, business_unit_id");
+  const teams = new Map<string, string[]>();
+  if (error) return teams;
+  for (const row of data ?? []) {
+    teams.set(row.profile_id, [...(teams.get(row.profile_id) ?? []), row.business_unit_id]);
+  }
+  return teams;
+}
+
 // Siapa yang perlu tahu soal lead/percakapan baru yang belum dipegang
-// siapa-siapa di sebuah brand: semua admin + sales di tim brand itu.
+// siapa-siapa: semua admin + sales di brand itu. Kalau business-nya sudah
+// dikenali, cuma sales di tim business itu (sales yang belum dimasukkan ke
+// tim mana pun tetap ikut menerima). Aturan ini sama dengan siapa yang
+// boleh MELIHAT chat belum-diklaim (lihat migrasi 0032).
 export async function brandTeamIds(
   admin: SupabaseClient,
   brandId: string | null,
+  businessUnitId: string | null = null,
 ): Promise<string[]> {
-  const { data } = await admin.from("profiles").select("id, is_admin, brand_id");
+  const [{ data }, teams] = await Promise.all([
+    admin.from("profiles").select("id, is_admin, brand_id"),
+    businessTeams(admin),
+  ]);
   return (data ?? [])
-    .filter((p) => p.is_admin || (brandId && p.brand_id === brandId))
+    .filter((p) => {
+      if (p.is_admin) return true;
+      if (!brandId || p.brand_id !== brandId) return false;
+      const team = teams.get(p.id);
+      return !businessUnitId || !team || team.includes(businessUnitId);
+    })
     .map((p) => p.id);
 }
