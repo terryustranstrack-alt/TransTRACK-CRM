@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { needsFollowUp, nextStepState } from "@/lib/reminders";
 import { groupDuplicates } from "@/lib/duplicates";
 import { BUSINESS_FILTER_ALL, matchesBusiness } from "@/lib/leadFilters";
+import { ALL_TIME, inDateRange, type DateRange } from "@/lib/dateRange";
 import SourceReport from "@/components/SourceReport";
 import AdReport from "@/components/AdReport";
 import ForecastCard from "@/components/ForecastCard";
@@ -30,12 +31,17 @@ function formatRupiah(n: number) {
 // atasnya — dashboard bisa dipersempit ke satu brand (nomor WhatsApp) saja.
 // `businessFilter` (TransTRACK / Academy / tanpa business) juga dari
 // DashboardView — angka-angka di bawah hanya menghitung lead business itu.
+// `dateRange` (periode pilihan) mempersempit angka ke lead yang MASUK di
+// periode itu. Daftar "Needs follow-up", duplikat, forecast, dan "New leads
+// this week" sengaja tidak ikut periode: itu daftar kerja / angka saat ini.
 export default function Dashboard({
   brandFilter = "all",
   businessFilter = BUSINESS_FILTER_ALL,
+  dateRange = ALL_TIME,
 }: {
   brandFilter?: string;
   businessFilter?: string;
+  dateRange?: DateRange;
 }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,11 +68,15 @@ export default function Dashboard({
         (brandFilter === "all" || lead.brand_id === brandFilter) &&
         matchesBusiness(lead, businessFilter),
     );
-    const totalLeads = leadsInBrand.length;
+    // Lead yang masuk di periode yang dipilih (All time = semua).
+    const leadsInRange = leadsInBrand.filter((lead) =>
+      inDateRange(lead.tanggal_masuk, dateRange),
+    );
+    const totalLeads = leadsInRange.length;
     // Jumlah lead + total estimasi nilainya, dikelompokkan per status —
     // dipakai untuk grafik batang "Distribusi Pipeline".
     const perStatus = LEAD_STATUSES.map((status) => {
-      const leadsInStatus = leadsInBrand.filter((lead) => lead.status === status);
+      const leadsInStatus = leadsInRange.filter((lead) => lead.status === status);
       const totalNilai = leadsInStatus.reduce(
         (sum, lead) => sum + (lead.estimasi_nilai ?? 0),
         0,
@@ -91,7 +101,7 @@ export default function Dashboard({
 
     // Total estimasi nilai dari lead yang masih "hidup" (belum closing,
     // belum hilang) — potensi revenue yang belum terealisasi.
-    const pipelineAktif = leadsInBrand
+    const pipelineAktif = leadsInRange
       .filter((lead) => lead.status !== "Closing" && lead.status !== "Hilang")
       .reduce((sum, lead) => sum + (lead.estimasi_nilai ?? 0), 0);
 
@@ -119,6 +129,7 @@ export default function Dashboard({
 
     return {
       leadsInBrand,
+      leadsInRange,
       totalLeads,
       perStatus,
       conversionRate,
@@ -129,7 +140,7 @@ export default function Dashboard({
       followUpLeads,
       duplicateGroups,
     };
-  }, [leads, now, brandFilter, businessFilter]);
+  }, [leads, now, brandFilter, businessFilter, dateRange]);
 
   if (loading) return <DashboardSkeleton />;
   if (error) {
@@ -151,7 +162,11 @@ export default function Dashboard({
       {/* Angka ringkasan. Conversion rate = satu-satunya angka merah
           (aksen brand) di layar ini — lihat catatan warna di globals.css. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile label="Total leads" value={stats.totalLeads} />
+        <StatTile
+          label="Total leads"
+          value={stats.totalLeads}
+          hint={dateRange.preset === "all" ? undefined : "Added in this period"}
+        />
         <StatTile
           label="Conversion rate"
           value={`${stats.conversionRate.toFixed(1)}%`}
@@ -187,7 +202,7 @@ export default function Dashboard({
             maxCount={maxCount}
           />
           <ForecastCard leads={stats.leadsInBrand} />
-          <SourceReport leads={stats.leadsInBrand} />
+          <SourceReport leads={stats.leadsInRange} />
         </div>
 
         <div className="order-first lg:order-none flex flex-col gap-6 min-w-0">
@@ -208,7 +223,11 @@ export default function Dashboard({
         </div>
       </div>
 
-      <AdReport leads={stats.leadsInBrand} brandFilter={brandFilter} />
+      <AdReport
+        leads={stats.leadsInRange}
+        brandFilter={brandFilter}
+        dateRange={dateRange}
+      />
     </>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { buildSourceReport } from "@/lib/sourceReport";
-import { matchesDateRange } from "@/lib/leadFilters";
 import type { Lead } from "@/lib/types";
 
 function formatRupiah(n: number) {
@@ -12,50 +11,17 @@ function formatRupiah(n: number) {
 // Kartu "Source performance" di Dashboard: per sumber lead (Instagram Ads,
 // Referral, dll.) — berapa lead masuk, berapa jadi Won/Lost, nilai yang
 // dihasilkan, lama rata-rata sampai closing, dan alasan kalah tersering.
-// Bisa dipersempit ke rentang tanggal masuk lead tertentu.
+// `leads` sudah dipersempit ke periode yang dipilih di atas Dashboard.
 export default function SourceReport({ leads }: { leads: Lead[] }) {
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-
-  const rows = useMemo(
-    () =>
-      buildSourceReport(
-        leads.filter((l) =>
-          matchesDateRange(l, "tanggal_masuk", dateFrom, dateTo),
-        ),
-      ),
-    [leads, dateFrom, dateTo],
-  );
+  const rows = useMemo(() => buildSourceReport(leads), [leads]);
 
   return (
     <div className="card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div>
-          <h2 className="card-title">Source performance</h2>
-          <p className="text-xs text-[var(--color-muted)]">
-            Which lead sources turn into deals
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-[var(--color-muted)]">Added from</span>
-          <input
-            type="date"
-            value={dateFrom}
-            max={dateTo || undefined}
-            onChange={(e) => setDateFrom(e.target.value)}
-            aria-label="Added from"
-            className="border border-[var(--color-border)] rounded-lg px-2 py-1"
-          />
-          <span className="text-[var(--color-muted)]">to</span>
-          <input
-            type="date"
-            value={dateTo}
-            min={dateFrom || undefined}
-            onChange={(e) => setDateTo(e.target.value)}
-            aria-label="Added to"
-            className="border border-[var(--color-border)] rounded-lg px-2 py-1"
-          />
-        </div>
+      <div className="mb-4">
+        <h2 className="card-title">Source performance</h2>
+        <p className="text-xs text-[var(--color-muted)]">
+          Which lead sources turn into deals
+        </p>
       </div>
 
       {rows.length === 0 ? (

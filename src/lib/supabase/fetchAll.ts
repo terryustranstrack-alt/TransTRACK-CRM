@@ -1,10 +1,9 @@
-import "server-only";
-
 const PAGE_SIZE = 1000;
 
 // Supabase membatasi 1000 baris per permintaan — ambil halaman demi halaman
-// sampai habis, supaya hitungan (leaderboard, pengingat harian) tidak
-// terpotong diam-diam. `query(from, to)` = query dengan .range(from, to).
+// sampai habis, supaya hitungan (leaderboard, pengingat harian, statistik
+// chat di Dashboard) tidak terpotong diam-diam. `query(from, to)` = query
+// dengan .range(from, to). Bisa dipakai di server maupun di browser.
 export async function fetchAll<T>(
   query: (
     from: number,

@@ -2,19 +2,31 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 import { useProfiles, profileLabel } from "@/lib/useProfiles";
+import { ALL_TIME, inDateRange, type DateRange } from "@/lib/dateRange";
 import StatTile from "@/components/StatTile";
 import type { Conversation } from "@/lib/types";
 
 // Irisan kecil dari tabel leads — cuma untuk menghitung berapa yang dibuat
-// otomatis oleh bot, per brand.
-type BotLeadSlice = { id: string; brand_id: string | null };
+// otomatis oleh bot, per brand dan per periode.
+type BotLeadSlice = { id: string; brand_id: string | null; tanggal_masuk: string };
 
 const supabase = createClient();
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
+// Mulai tanggal berapa pesan perlu diambil. Minimal 30 hari terakhir
+// (untuk "Awaiting a reply"), atau lebih jauh kalau periode yang dipilih
+// mulai lebih awal. `null` = ambil semua (All time / Custom tanpa "From").
+function messagesSince(from: string): string | null {
+  if (!from) return null;
+  const thirtyDaysAgo = Date.now() - THIRTY_DAYS_MS;
+  const rangeStart = new Date(`${from}T00:00:00`).getTime();
+  return new Date(Math.min(thirtyDaysAgo, rangeStart)).toISOString();
+}
+
 // Irisan kecil dari tabel messages — cuma kolom yang dibutuhkan buat hitung
-// metrik, dibatasi 30 hari terakhir supaya query tidak berat.
+// metrik.
 type MessageSlice = {
   conversation_id: string;
   direction: "inbound" | "outbound";
@@ -25,6 +37,17 @@ type MessageSlice = {
 
 function messageTime(m: MessageSlice): number {
   return new Date(m.wa_timestamp ?? m.created_at).getTime();
+}
+
+// Kelompokkan pesan per percakapan, urutan aslinya (waktu naik) dipertahankan.
+function groupByConversation(messages: MessageSlice[]): Map<string, MessageSlice[]> {
+  const byConversation = new Map<string, MessageSlice[]>();
+  for (const msg of messages) {
+    const list = byConversation.get(msg.conversation_id) ?? [];
+    list.push(msg);
+    byConversation.set(msg.conversation_id, list);
+  }
+  return byConversation;
 }
 
 // Format durasi rata-rata balasan jadi teks pendek (detik / menit / jam).
@@ -38,10 +61,14 @@ function formatDuration(ms: number | null): string {
 // Blok metrik WhatsApp Inbox di halaman Dashboard: percakapan terbuka,
 // yang menunggu dibalas, rata-rata waktu balasan pertama, dan sebaran
 // beban per sales. Semua dihitung di sisi klien (pola sama seperti Dashboard).
+// "Open conversations", "Awaiting a reply" dan beban per sales = kondisi saat
+// ini; balasan bot, waktu balasan pertama, dan lead dari bot ikut `dateRange`.
 export default function ChatMetrics({
   brandFilter = "all",
+  dateRange = ALL_TIME,
 }: {
   brandFilter?: string;
+  dateRange?: DateRange;
 }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<MessageSlice[]>([]);
@@ -49,40 +76,55 @@ export default function ChatMetrics({
   const [loading, setLoading] = useState(true);
   const profiles = useProfiles();
 
+  // Percakapan & lead dari bot cukup diambil sekali.
   useEffect(() => {
     async function load() {
-      const since = new Date(Date.now() - THIRTY_DAYS_MS).toISOString();
-      const [conversationsResult, messagesResult, botLeadsResult] =
-        await Promise.all([
-          supabase.from("conversations").select("*"),
-          supabase
-            .from("messages")
-            .select(
-              "conversation_id, direction, sent_by_bot, wa_timestamp, created_at",
-            )
-            .gte("wa_timestamp", since)
-            .order("wa_timestamp", { ascending: true }),
-          // Lead yang dibuat otomatis oleh bot (mengikuti RLS: sales biasa
-          // melihat miliknya sendiri, admin melihat semua) — brand_id ikut
-          // diambil supaya bisa dipersempit per brand di bawah.
-          supabase
-            .from("leads")
-            .select("id, brand_id")
-            .eq("created_by_bot", true),
-        ]);
+      const [conversationsResult, botLeadsResult] = await Promise.all([
+        supabase.from("conversations").select("*"),
+        // Lead yang dibuat otomatis oleh bot (mengikuti RLS: sales biasa
+        // melihat miliknya sendiri, admin melihat semua) — brand_id &
+        // tanggal masuk ikut diambil supaya bisa dipersempit di bawah.
+        supabase
+          .from("leads")
+          .select("id, brand_id, tanggal_masuk")
+          .eq("created_by_bot", true),
+      ]);
       if (conversationsResult.data) {
         setConversations(conversationsResult.data as Conversation[]);
-      }
-      if (messagesResult.data) {
-        setMessages(messagesResult.data as MessageSlice[]);
       }
       if (botLeadsResult.data) {
         setBotLeads(botLeadsResult.data as BotLeadSlice[]);
       }
-      setLoading(false);
     }
     load();
   }, []);
+
+  // Pesan diambil ulang setiap tanggal awal periode berubah (halaman demi
+  // halaman, supaya tidak terpotong di 1000 pesan).
+  const rangeFrom = dateRange.from;
+  useEffect(() => {
+    let cancelled = false;
+    const since = messagesSince(rangeFrom);
+    fetchAll<MessageSlice>((from, to) => {
+      let query = supabase
+        .from("messages")
+        .select("conversation_id, direction, sent_by_bot, wa_timestamp, created_at");
+      if (since) query = query.gte("wa_timestamp", since);
+      return query.order("wa_timestamp", { ascending: true }).range(from, to);
+    })
+      .then((rows) => {
+        if (!cancelled) setMessages(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setMessages([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rangeFrom]);
 
   const stats = useMemo(() => {
     const conversationsInBrand =
@@ -93,22 +135,22 @@ export default function ChatMetrics({
     const messagesInBrand = messages.filter((m) =>
       conversationIds.has(m.conversation_id),
     );
-    const botLeadCount =
-      brandFilter === "all"
-        ? botLeads.length
-        : botLeads.filter((l) => l.brand_id === brandFilter).length;
+    const botLeadCount = botLeads.filter(
+      (l) =>
+        (brandFilter === "all" || l.brand_id === brandFilter) &&
+        inDateRange(l.tanggal_masuk, dateRange),
+    ).length;
 
     const openConversations = conversationsInBrand.filter(
       (c) => c.status !== "resolved",
     );
 
     // Kelompokkan pesan per percakapan (sudah terurut naik dari query).
-    const messagesByConversation = new Map<string, MessageSlice[]>();
-    for (const msg of messagesInBrand) {
-      const list = messagesByConversation.get(msg.conversation_id) ?? [];
-      list.push(msg);
-      messagesByConversation.set(msg.conversation_id, list);
-    }
+    const messagesByConversation = groupByConversation(messagesInBrand);
+    // Pesan yang terkirim/diterima di dalam periode yang dipilih.
+    const messagesInRange = messagesInBrand.filter((m) =>
+      inDateRange(m.wa_timestamp ?? m.created_at, dateRange),
+    );
 
     // "Menunggu dibalas" = percakapan terbuka yang pesan terakhirnya dari kontak.
     let unanswered = 0;
@@ -120,9 +162,9 @@ export default function ChatMetrics({
     }
 
     // Waktu balasan pertama: dari pesan masuk pertama ke pesan keluar pertama
-    // sesudahnya, dirata-ratakan.
+    // sesudahnya (di dalam periode), dirata-ratakan.
     const replyDeltas: number[] = [];
-    for (const msgs of messagesByConversation.values()) {
+    for (const msgs of groupByConversation(messagesInRange).values()) {
       const firstInbound = msgs.find((m) => m.direction === "inbound");
       if (!firstInbound) continue;
       const inboundAt = messageTime(firstInbound);
@@ -136,8 +178,8 @@ export default function ChatMetrics({
         ? replyDeltas.reduce((a, b) => a + b, 0) / replyDeltas.length
         : null;
 
-    // Balasan yang dikirim otomatis oleh chatbot (30 hari terakhir).
-    const botReplies = messagesInBrand.filter(
+    // Balasan yang dikirim otomatis oleh chatbot (di dalam periode).
+    const botReplies = messagesInRange.filter(
       (m) => m.direction === "outbound" && m.sent_by_bot,
     ).length;
 
@@ -159,7 +201,7 @@ export default function ChatMetrics({
       botLeadCount,
       perSales: perSales.filter((s) => s.count > 0),
     };
-  }, [conversations, messages, botLeads, profiles, brandFilter]);
+  }, [conversations, messages, botLeads, profiles, brandFilter, dateRange]);
 
   if (loading) {
     return <div className="skeleton h-56" aria-label="Loading chat metrics" />;
@@ -174,7 +216,8 @@ export default function ChatMetrics({
       <div>
         <h2 className="card-title">WhatsApp Inbox</h2>
         <p className="text-xs text-[var(--color-muted)]">
-          Live conversation load and chatbot activity
+          Open and awaiting counts are live; reply time and bot numbers follow
+          the selected period
         </p>
       </div>
 
@@ -183,7 +226,7 @@ export default function ChatMetrics({
           <StatTile label="Open conversations" value={stats.openCount} />
           <StatTile label="Awaiting a reply" value={stats.unanswered} tone="warning" />
           <StatTile label="Avg. first reply" value={formatDuration(stats.avgReplyMs)} />
-          <StatTile label="Bot replies sent (30d)" value={stats.botReplies} tone="ai" />
+          <StatTile label="Bot replies sent" value={stats.botReplies} tone="ai" />
           <StatTile label="Leads captured by bot" value={stats.botLeadCount} tone="ai" />
         </div>
 

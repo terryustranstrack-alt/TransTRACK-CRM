@@ -6,9 +6,9 @@ import { buildAdReport, totalAdReport } from "@/lib/adReport";
 import {
   BUSINESS_FILTER_ALL,
   BUSINESS_FILTER_NONE,
-  matchesDateRange,
   toLocalDateInputValue,
 } from "@/lib/leadFilters";
+import { inDateRange, type DateRange } from "@/lib/dateRange";
 import { useLeadFieldSettings } from "@/lib/useLeadFieldSettings";
 import BusinessBadge from "@/components/BusinessBadge";
 import BusinessFilter from "@/components/BusinessFilter";
@@ -44,31 +44,26 @@ function spendDateRange(ads: AdSource[], from: string, to: string) {
   return { since: from || earliest || today, until: to || today };
 }
 
-// Chat masuk di rentang tanggal yang dipilih? (kosong = tidak dibatasi)
-function chatInRange(chat: ChatRow, from: string, to: string): boolean {
-  const day = toLocalDateInputValue(chat.created_at);
-  if (from && day < from) return false;
-  if (to && day > to) return false;
-  return true;
-}
-
 // Kartu "Ad performance" di Dashboard: per iklan Meta (Click-to-WhatsApp) —
 // berapa chat yang masuk, berapa jadi lead, berapa Won/Lost, dan nilai
-// yang dihasilkan. Bisa difilter per Business dan rentang tanggal.
-// `leads` & `brandFilter` datang dari Dashboard (sudah difilter per brand).
+// yang dihasilkan. Bisa difilter per Business di kartu ini.
+// `leads`, `brandFilter` & `dateRange` datang dari Dashboard — `leads` sudah
+// dipersempit per brand dan ke periode yang dipilih di atas halaman.
 export default function AdReport({
   leads,
   brandFilter,
+  dateRange,
 }: {
   leads: Lead[];
   brandFilter: string;
+  dateRange: DateRange;
 }) {
   const { businessUnits } = useLeadFieldSettings();
   const [ads, setAds] = useState<AdSource[]>([]);
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [businessFilter, setBusinessFilter] = useState(BUSINESS_FILTER_ALL);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const dateFrom = dateRange.from;
+  const dateTo = dateRange.to;
 
   useEffect(() => {
     async function load() {
@@ -126,47 +121,22 @@ export default function AdReport({
     );
     const chatAdIds = chats
       .filter((c) => brandFilter === "all" || c.brand_id === brandFilter)
-      .filter((c) => chatInRange(c, dateFrom, dateTo))
+      .filter((c) => inDateRange(c.created_at, dateRange))
       .map((c) => c.ad_source_id);
-    const leadsInRange = leads.filter((l) =>
-      matchesDateRange(l, "tanggal_masuk", dateFrom, dateTo),
-    );
-    return buildAdReport(adsInBusiness, leadsInRange, chatAdIds, spendBySourceId);
-  }, [ads, chats, leads, businessFilter, brandFilter, dateFrom, dateTo, spendBySourceId]);
+    return buildAdReport(adsInBusiness, leads, chatAdIds, spendBySourceId);
+  }, [ads, chats, leads, businessFilter, brandFilter, dateRange, spendBySourceId]);
 
   const total = totalAdReport(rows);
   const nameOf = (id: string | null) => businessUnits.find((b) => b.id === id)?.name;
 
   return (
     <div className="card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <div>
-          <h2 className="card-title">Ad performance</h2>
-          <p className="text-xs text-[var(--color-muted)]">
-            Meta Click-to-WhatsApp ads — chats, leads and deals per ad
-            {showSpend ? ", with ad spend from Meta" : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-[var(--color-muted)]">From</span>
-          <input
-            type="date"
-            value={dateFrom}
-            max={dateTo || undefined}
-            onChange={(e) => setDateFrom(e.target.value)}
-            aria-label="From date"
-            className="border border-[var(--color-border)] rounded-lg px-2 py-1"
-          />
-          <span className="text-[var(--color-muted)]">to</span>
-          <input
-            type="date"
-            value={dateTo}
-            min={dateFrom || undefined}
-            onChange={(e) => setDateTo(e.target.value)}
-            aria-label="To date"
-            className="border border-[var(--color-border)] rounded-lg px-2 py-1"
-          />
-        </div>
+      <div className="mb-3">
+        <h2 className="card-title">Ad performance</h2>
+        <p className="text-xs text-[var(--color-muted)]">
+          Meta Click-to-WhatsApp ads — chats, leads and deals per ad
+          {showSpend ? ", with ad spend from Meta" : ""}
+        </p>
       </div>
 
       <div className="mb-4">
